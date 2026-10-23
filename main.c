@@ -2,17 +2,17 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdbool.h>
- 
+
 #include "boards.h"
 #include "app_timer.h"
 #include "custom_gpio_drivers.h"
 #include "app_util_platform.h"
 #include "app_error.h"
 #include "SEGGER_RTT.h"
- 
+
 #include "bsp.h"
 #include "bsp_btn_ble.h"
- 
+
 #include "nrf_mesh_config_core.h"
 #include "nrf_mesh_gatt.h"
 #include "nrf_mesh_configure.h"
@@ -22,21 +22,21 @@
 #include "device_state_manager.h"
 #include "access_config.h"
 #include "proxy.h"
- 
+
 #include "mesh_provisionee.h"
 #include "mesh_app_utils.h"
- 
+
 #include "generic_level_server.h"
 #include "scene_setup_server.h"
 #include "model_config_file.h"
 #include "generic_level_client.h"
- 
+
 #include "log.h"
 #include "rtt_input.h"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
- 
+
 #include "nrf_mesh_config_app.h"
 #include "nrf.h"
 #include "example_common.h"
@@ -46,18 +46,18 @@
 #include "app_dtt.h"
 #include "ble_softdevice_support.h"
 #include "nrf_delay.h"
- 
+
 #include "nrf_drv_wdt.h"
- 
+
 #include "nrf_drv_saadc.h"
 #define MQ2_ANALOG_PIN NRF_SAADC_INPUT_AIN0
- 
+
 #include "st7789_drivers.h"
 #include "nrf52_timer.h"
 #include "nrf52_at24c32_64.h"
 #include "nrf52_aht10.h"
 #include "DHT.h"
- 
+
 #include "app_uart.h"
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
@@ -65,131 +65,129 @@
 #if defined (UARTE_PRESENT)
 #include "nrf_uarte.h"
 #endif
- 
+
 /* ========================================================================== */
-/* C?U H?NH MAC DINH (TN1) - GHI ?? B?NG PREPROCESSOR DEFINITIONS             */
+/* CAU HINH MAC DINH CHO THI NGHIEM 3 (TN3)                                   */
 /* ========================================================================== */
 #ifndef EXP_ID
-#define EXP_ID                    2     
+#define EXP_ID                    3
 #endif
 #ifndef FW_GIT_HASH
-#define FW_GIT_HASH               "nohash"
+#define FW_GIT_HASH               "tn3_v3"
 #endif
 #ifndef EXP_NUM_MSGS
-#define EXP_NUM_MSGS              1500   
+#define EXP_NUM_MSGS              1000
 #endif
 #ifndef EXP_PERIOD_MS
-#define EXP_PERIOD_MS             1000  
+#define EXP_PERIOD_MS             1000
 #endif
 #ifndef EXP_TTL
-#define EXP_TTL                   4     
+#define EXP_TTL                   0xFF
+#endif
+#ifndef EXP_DEFAULT_TTL_INIT
+#define EXP_DEFAULT_TTL_INIT      4
 #endif
 #ifndef EXP_NET_TX_COUNT
-#define EXP_NET_TX_COUNT          2     
+#define EXP_NET_TX_COUNT          0xFF
 #endif
 #ifndef EXP_TX_POWER_DBM
-#define EXP_TX_POWER_DBM          0     
+#define EXP_TX_POWER_DBM          0
 #endif
 #ifndef EXP_SEND_UNACK
-#define EXP_SEND_UNACK            1     
+#define EXP_SEND_UNACK            1
 #endif
 #ifndef EXP_READ_CFG
-#define EXP_READ_CFG              1     
+#define EXP_READ_CFG              1
 #endif
 #ifndef EXP_ENABLE_TRIG
-#define EXP_ENABLE_TRIG           1     
+#define EXP_ENABLE_TRIG           1
 #endif
 #ifndef EXP_LIVE_LOG
-#define EXP_LIVE_LOG              0     
+#define EXP_LIVE_LOG              0
 #endif
 #ifndef EXP_ENABLE_ALARM_BUTTON
-#define EXP_ENABLE_ALARM_BUTTON   0     
+#define EXP_ENABLE_ALARM_BUTTON   0
 #endif
 #ifndef EXP_HOPS
-#define EXP_HOPS                  4     /* 1..4 ch?ng cho TN2 */
+#define EXP_HOPS                  3
 #endif
 #ifndef EXP_DEBUG_RX_MAC
-#define EXP_DEBUG_RX_MAC          0     /* 1 = B?t in 5 MAC nh?n d?u ti?n khi b?m N?t 2 */
+#define EXP_DEBUG_RX_MAC          0
 #endif
 #ifndef EXP_MAX_TX_FAIL
-#define EXP_MAX_TX_FAIL           30    
+#define EXP_MAX_TX_FAIL           30
 #endif
 #ifndef EXP_HALT_ON_FAULT
-#define EXP_HALT_ON_FAULT         1     
+#define EXP_HALT_ON_FAULT         1
 #endif
 #ifndef EXP_STRICT_CFG
-#define EXP_STRICT_CFG            0     
+#define EXP_STRICT_CFG            0
 #endif
 #ifndef EXP_RTT_KEYS
-#define EXP_RTT_KEYS              0     
+#define EXP_RTT_KEYS              1
 #endif
 #ifndef EXP_TRACE_STEPS
-#define EXP_TRACE_STEPS           0     
+#define EXP_TRACE_STEPS           0
 #endif
 #ifndef EXP_HOP_WHITELIST
-#define EXP_HOP_WHITELIST         1     
+#define EXP_HOP_WHITELIST         1
 #endif
- 
+#ifndef EXP_CACHE_COUNT_BACK_ECHO
+#define EXP_CACHE_COUNT_BACK_ECHO 1
+#endif
 #ifndef EXP_HOPS_RUNTIME
-#define EXP_HOPS_RUNTIME          1     /* 1 = doi so chang bang Nut 1, khong can nap lai firmware */
+#define EXP_HOPS_RUNTIME          0
 #endif
- 
+#ifndef EXP_TN3_PRESET_RUNTIME
+#define EXP_TN3_PRESET_RUNTIME    1
+#endif
+
 #if (EXP_PERIOD_MS != 1000)
-#warning "Chu ky phat thuc te co dinh 1000 ms (theo m_second_changed); EXP_PERIOD_MS chi de ghi vao dong CFG."
+#warning "Chu ky phat thuc te co dinh 1000 ms"
 #endif
 #if (EXP_HOPS < 1) || (EXP_HOPS > 4)
 #error "EXP_HOPS phai nam trong 1..4"
 #endif
- 
+
 #if EXP_SEND_UNACK
-#define EXP_PAYLOAD_LEN           5     
+#define EXP_PAYLOAD_LEN           5
 #else
-#define EXP_PAYLOAD_LEN           7     
+#define EXP_PAYLOAD_LEN           7
 #endif
- 
+
 #if EXP_TRACE_STEPS
 #define EXP_STEP(s)               SEGGER_RTT_WriteString(0, "# [STEP] " s "\r\n")
 #else
 #define EXP_STEP(s)               ((void)0)
 #endif
- 
+
 #if EXP_READ_CFG
 #include "mesh_opt_core.h"
 #endif
- 
+
 #ifndef TRIG_PIN
-#define TRIG_PIN                  11    /* P0.11 -> kenh Dx cua PPK2 */
+#define TRIG_PIN                  11
 #endif
 #ifndef TRIG_WIDTH_US
-#define TRIG_WIDTH_US             200   /* be rong moi xung (>= 2 mau PPK2, 10 us/mau) */
+#define TRIG_WIDTH_US             200
 #endif
 #ifndef TRIG_GAP_US
-#define TRIG_GAP_US               200   /* khoang nghi giua cac xung trong cung 1 nhom */
+#define TRIG_GAP_US               200
 #endif
- 
-/* Ma su kien = SO XUNG trong mot nhom (huong dan TN2, muc 3.1):
- *   1 xung : ngay truoc khi publish           (nguon phat  N4)
- *   2 xung : khi relay dua goi vao hang doi   (node chuyen tiep, trong network.c)
- *   3 xung : dau handler cua model            (node dich   GW)
- * Moc thoi gian cua su kien = SUON LEN cua xung DAU TIEN trong nhom.
- * Khi xu ly PPK2: hai xung cach nhau < 1 ms thuoc cung mot nhom. */
+
 #define EXP_TRIG_TX               1
 #define EXP_TRIG_FWD              2
 #define EXP_TRIG_RX               3
- 
-static volatile uint32_t m_trig_cnt[4];   /* so nhom xung da phat: [1]=TX [2]=FWD [3]=RX */
- 
-/* Keo TRIG len cao ngay luc su kien xay ra. Chua ket thuc xung o day de khong
- * chen do tre vao chinh thao tac can do. */
+
+static volatile uint32_t m_trig_cnt[4];
+
 void exp_trig_begin(void)
 {
 #if EXP_ENABLE_TRIG
     nrf_gpio_pin_set(TRIG_PIN);
 #endif
 }
- 
-/* Goi SAU khi thao tac can do da xong: hoan tat xung dau (>= TRIG_WIDTH_US)
- * roi phat them (pulses - 1) xung de ma hoa loai su kien. */
+
 void exp_trig_end(uint8_t pulses)
 {
 #if EXP_ENABLE_TRIG
@@ -210,15 +208,36 @@ void exp_trig_end(uint8_t pulses)
     (void)pulses;
 #endif
 }
- 
+
 /* ========================================================================== */
-/* WHITELIST MAC THEO CHU?I TUY?N T?NH (N4 -> N3 -> N2 -> N1 -> GW)           */
+/* BANG 24 CAU HINH QUET CUA TN3                                              */
+/* ========================================================================== */
+typedef struct {
+    uint8_t relay_retx;
+    uint8_t net_tx;
+    uint8_t ttl;
+} exp_tn3_cfg_t;
+
+#define EXP_TN3_NUM_CFGS          24
+
+static const exp_tn3_cfg_t EXP_TN3_TABLE[EXP_TN3_NUM_CFGS] = {
+    {0, 1, 4}, {0, 2, 4}, {0, 3, 4}, {0, 5, 4},
+    {1, 1, 4}, {1, 2, 4}, {1, 3, 4}, {1, 5, 4},
+    {2, 1, 4}, {2, 2, 4}, {2, 3, 4}, {2, 5, 4},
+    {3, 1, 4}, {3, 2, 4}, {3, 3, 4}, {3, 5, 4},
+    {5, 1, 4}, {5, 2, 4}, {5, 3, 4}, {5, 5, 4},
+    {2, 2, 1}, {2, 2, 2}, {2, 2, 3}, {2, 2, 5}
+};
+
+static volatile uint8_t m_tn3_cfg_idx = 9;
+
+/* ========================================================================== */
+/* WHITELIST MAC THEO CHUOI TUYEN TINH (N4 -> N3 -> N2 -> N1 -> GW)           */
 /* ========================================================================== */
 typedef struct {
     uint8_t addr[BLE_GAP_ADDR_LEN];
 } exp_node_mac_t;
- 
-/* ?i?n byte theo d?ng th? t? m?ng addr[0..5] in ra t?i RTT l?c kh?i d?ng */
+
 static const exp_node_mac_t EXP_TOPOLOGY_CHAIN[5] = {
     { {0x4D, 0xEA, 0x4F, 0x49, 0x8F, 0xF4} }, /* N4 (index 0) */
     { {0xA6, 0x63, 0x52, 0xE2, 0x7B, 0xCB} }, /* N3 (index 1) */
@@ -226,22 +245,22 @@ static const exp_node_mac_t EXP_TOPOLOGY_CHAIN[5] = {
     { {0xD0, 0x26, 0xE8, 0x7D, 0x07, 0xD2} }, /* N1 (index 3) */
     { {0x4A, 0x5A, 0x32, 0xA2, 0x18, 0xF8} }, /* GW (index 4) */
 };
- 
+
 static int8_t m_my_chain_index = -1;
 static ble_gap_addr_t m_my_ble_addr;
- 
+
 void exp_chain_mac_init(void)
 {
     (void)sd_ble_gap_addr_get(&m_my_ble_addr);
- 
+
     SEGGER_RTT_printf(0, "# [NODE_ADDR] MAC (UI):  %02X:%02X:%02X:%02X:%02X:%02X\r\n",
                       m_my_ble_addr.addr[5], m_my_ble_addr.addr[4], m_my_ble_addr.addr[3],
                       m_my_ble_addr.addr[2], m_my_ble_addr.addr[1], m_my_ble_addr.addr[0]);
- 
+
     SEGGER_RTT_printf(0, "# [NODE_ADDR] ARRAY C:   { 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X, 0x%02X }\r\n",
                       m_my_ble_addr.addr[0], m_my_ble_addr.addr[1], m_my_ble_addr.addr[2],
                       m_my_ble_addr.addr[3], m_my_ble_addr.addr[4], m_my_ble_addr.addr[5]);
- 
+
     m_my_chain_index = -1;
     for (uint8_t i = 0; i < 5; i++)
     {
@@ -251,7 +270,7 @@ void exp_chain_mac_init(void)
             break;
         }
     }
- 
+
 #if EXP_HOP_WHITELIST
     if (m_my_chain_index == -1)
     {
@@ -263,16 +282,12 @@ void exp_chain_mac_init(void)
     }
 #endif
 }
- 
-#define EXP_GW_INDEX              4     /* GW la phan tu cuoi cua EXP_TOPOLOGY_CHAIN */
- 
+
+#define EXP_GW_INDEX              4
+
 volatile uint8_t g_dbg_rx_mac_left = 0;
- 
-/* So chang dang cau hinh. Khoi dong = EXP_HOPS; doi bang Nut 1 (EXP_HOPS_RUNTIME). */
 volatile uint8_t g_exp_hops = EXP_HOPS;
- 
-/* true neu node nay la node dich (phat xung 3 nhip khi nhan). Khi tat whitelist
- * thi moi node nhan deu coi la dich (giu nguyen hanh vi cu). */
+
 static inline bool exp_is_dest(void)
 {
 #if EXP_HOP_WHITELIST
@@ -281,7 +296,7 @@ static inline bool exp_is_dest(void)
     return true;
 #endif
 }
- 
+
 bool exp_packet_allow(const uint8_t * p_adv_addr, uint8_t adv_type)
 {
 #if EXP_HOP_WHITELIST
@@ -291,24 +306,24 @@ bool exp_packet_allow(const uint8_t * p_adv_addr, uint8_t adv_type)
     }
     if (m_my_chain_index <= 0)
     {
-        return false; /* MAC la hoac N4 (nguon phat, khong nhan) */
+        return false;
     }
- 
+
     const int hops = (int)g_exp_hops;
     int pred;
     if (m_my_chain_index == EXP_GW_INDEX)
     {
-        pred = hops - 1;                  /* GW nghe node phat cuoi cung dang bat */
+        pred = hops - 1;
     }
     else if (m_my_chain_index < hops)
     {
-        pred = m_my_chain_index - 1;      /* relay chi nghe node dung ngay truoc */
+        pred = m_my_chain_index - 1;
     }
     else
     {
-        return false;                     /* node nam ngoai cau hinh so chang hien tai */
+        return false;
     }
- 
+
     return (memcmp(p_adv_addr, EXP_TOPOLOGY_CHAIN[pred].addr, BLE_GAP_ADDR_LEN) == 0);
 #else
     (void)p_adv_addr;
@@ -316,21 +331,39 @@ bool exp_packet_allow(const uint8_t * p_adv_addr, uint8_t adv_type)
     return true;
 #endif
 }
- 
+
+bool exp_packet_is_neighbor_echo(const uint8_t * p_adv_addr, uint8_t adv_type)
+{
+#if EXP_HOP_WHITELIST && EXP_CACHE_COUNT_BACK_ECHO
+    if (adv_type != 0x2A)
+    {
+        return false;
+    }
+    const int hops = (int)g_exp_hops;
+    if (m_my_chain_index > 0 && m_my_chain_index < (hops - 1))
+    {
+        int succ = m_my_chain_index + 1;
+        return (memcmp(p_adv_addr, EXP_TOPOLOGY_CHAIN[succ].addr, BLE_GAP_ADDR_LEN) == 0);
+    }
+    return false;
+#else
+    (void)p_adv_addr;
+    (void)adv_type;
+    return false;
+#endif
+}
+
 extern uint32_t m_secondCounter;
- 
-/* Dong ho cuc bo (RTC1 32768 Hz, phan giai ~30,5 us), tinh bang us TINH TU LUC BAT DAU RUN
- * (exp_time_reset). Muc dich: (1) 32 bit chi tran sau 71 phut -> khong the tran trong 1 run 25 phut;
- * (2) doi chieu cheo voi moc PPK2. Truc thoi gian CHUNG cua TN2 la PPK2, khong phai cot nay. */
+
 static uint32_t m_rtc_last   = 0;
 static uint64_t m_rtc_acc    = 0;
 static uint64_t m_rtc_t0     = 0;
- 
+
 static inline uint32_t get_local_time_us(void)
 {
     uint32_t now, diff;
     uint64_t acc;
- 
+
     CRITICAL_REGION_ENTER();
     now  = app_timer_cnt_get() & 0x00FFFFFF;
     diff = (now - m_rtc_last) & 0x00FFFFFF;
@@ -338,10 +371,10 @@ static inline uint32_t get_local_time_us(void)
     m_rtc_acc += diff;
     acc = m_rtc_acc - m_rtc_t0;
     CRITICAL_REGION_EXIT();
- 
+
     return (uint32_t)((acc * 1000000ULL) / 32768ULL);
 }
- 
+
 static void exp_time_reset(void)
 {
     CRITICAL_REGION_ENTER();
@@ -351,46 +384,46 @@ static void exp_time_reset(void)
     m_rtc_t0   = m_rtc_acc;
     CRITICAL_REGION_EXIT();
 }
- 
-enum signalStatus   
+
+enum signalStatus
 {
     _normalStatus = 1,
     _fireAlarmStatus = 3,
 };
- 
+
 static uint32_t m_present_level;
 uint32_t timerBCounter;
 uint32_t refreshDisplayCounter = 1;
 bool _getResetProvisionKey = false;
- 
+
 volatile uint16_t g_last_mesh_src_addr = 0;
 volatile int8_t   g_last_mesh_rssi     = 0;
 volatile uint8_t  g_last_mesh_ttl      = 0;
- 
+
 bool clientProvisioned = false;
 bool clientProvisionChanged = false;
- 
+
 static void trigger_egu30_event(void);
- 
+
 bool aht10Available;
 float _clientTemperature;
 float _clientHumidity;
- 
+
 bool mq2Available = true;
 uint16_t _clientMQ2Value;
- 
+
 bool clearAllDisplayNodes;
- 
-#define UART_TX_BUF_SIZE        256                   
-#define UART_RX_BUF_SIZE        256                   
- 
+
+#define UART_TX_BUF_SIZE        256
+#define UART_RX_BUF_SIZE        256
+
 void uart_error_handle(app_uart_evt_t * p_event)
 {
     (void)p_event;
 }
- 
+
 dsm_local_unicast_address_t node_address;
- 
+
 void uart_puts(const char *_ch)
 {
     while (*_ch)
@@ -402,7 +435,7 @@ void uart_puts(const char *_ch)
         _ch++;
     }
 }
- 
+
 void uart_init(void)
 {
     uint32_t err_code;
@@ -420,7 +453,7 @@ void uart_init(void)
         .baud_rate    = NRF_UARTE_BAUDRATE_115200
     #endif
     };
- 
+
     APP_UART_FIFO_INIT(&comm_params,
                        UART_RX_BUF_SIZE,
                        UART_TX_BUF_SIZE,
@@ -429,18 +462,18 @@ void uart_init(void)
                        err_code);
     APP_ERROR_CHECK(err_code);
 }
- 
+
 #define LOG_QUEUE_SIZE        16
 #define LOG_MSG_MAX_LEN       128
- 
+
 static char m_log_queue[LOG_QUEUE_SIZE][LOG_MSG_MAX_LEN];
 static volatile uint8_t m_log_head = 0;
 static volatile uint8_t m_log_tail = 0;
 static volatile bool m_logging_enabled = true;
 bool periodic_message_allowed = false;
- 
-static void log_uart_mesh_event(const char* event, uint16_t src, uint16_t dst, 
-                                uint32_t seq, uint8_t ttl_tx, uint8_t ttl_rx, 
+
+static void log_uart_mesh_event(const char* event, uint16_t src, uint16_t dst,
+                                uint32_t seq, uint8_t ttl_tx, uint8_t ttl_rx,
                                 int8_t rssi, const char* traffic_class, uint8_t len)
 {
 #if !EXP_LIVE_LOG
@@ -454,20 +487,20 @@ static void log_uart_mesh_event(const char* event, uint16_t src, uint16_t dst,
     }
     uint32_t t_us = get_local_time_us();
     uint16_t my_id = node_address.address_start & 0xFFFF;
-    
+
     uint8_t next_head = (m_log_head + 1) % LOG_QUEUE_SIZE;
-    
+
     if (next_head != m_log_tail)
     {
-        snprintf(m_log_queue[m_log_head], LOG_MSG_MAX_LEN, 
+        snprintf(m_log_queue[m_log_head], LOG_MSG_MAX_LEN,
                  "%u,0x%04X,%s,0x%04X,0x%04X,%u,%u,%u,%d,%s,%u\r\n",
                  t_us, my_id, event, src, dst, seq, ttl_tx, ttl_rx, rssi, traffic_class, len);
- 
+
         SEGGER_RTT_WriteString(0, m_log_queue[m_log_head]);
         m_log_head = next_head;
     }
 }
- 
+
 static void log_queue_flush(void)
 {
     while (m_log_tail != m_log_head)
@@ -476,49 +509,75 @@ static void log_queue_flush(void)
         m_log_tail = (m_log_tail + 1) % LOG_QUEUE_SIZE;
     }
 }
- 
+
 extern nrfx_wdt_channel_id m_channel_id;
- 
-#define MAX_OFFLINE_RECORDS  1800
- 
+
+/* ========================================================================== */
+/* BO DEM LOG OFFLINE NEN 10 BYTES/BAN GHI (1100 * 10 = 11000 BYTES RAM)      */
+/* ========================================================================== */
+#define MAX_OFFLINE_RECORDS  1100
+
+enum {
+    EXP_EVT_TX    = 0,
+    EXP_EVT_RX    = 1,
+    EXP_EVT_RELAY = 2
+};
+
+/* Byte ttl_evt_dc: bit 0..2 = ttl (0..7), bit 3..4 = evt (0..3), bit 5..7 = drop_cache (0..7) */
+#define PACK_TTL_EVT_DC(ttl, evt, dc) \
+    ((uint8_t)(((ttl) & 0x07u) | (((evt) & 0x03u) << 3) | (((dc) & 0x07u) << 5)))
+#define UNPACK_TTL(v)        ((uint8_t)((v) & 0x07u))
+#define UNPACK_EVT(v)        ((uint8_t)(((v) >> 3) & 0x03u))
+#define UNPACK_DC(v)         ((uint8_t)(((v) >> 5) & 0x07u))
+
 typedef struct __attribute__((packed)) {
     uint32_t t_us;
     uint16_t seq_alarm;
     uint16_t src;
-    uint8_t  ttl;
+    uint8_t  ttl_evt_dc;
     int8_t   rssi;
 } offline_log_t;
- 
+
 static offline_log_t m_offline_logs[MAX_OFFLINE_RECORDS];
-static volatile uint16_t m_offline_count = 0;
+static volatile uint16_t m_offline_count   = 0;
 static volatile uint16_t m_offline_dropped = 0;
-static volatile bool m_dump_requested = false;
-volatile uint8_t g_display_src = 0;
- 
-static volatile bool     m_req_toggle     = false;
+static volatile bool     m_dump_requested  = false;
+volatile uint8_t         g_display_src     = 0;
+
+static volatile uint32_t m_drop_cache_cnt  = 0;
+static volatile uint32_t m_relay_ok_cnt    = 0;
+static volatile uint32_t m_rx_unique_cnt   = 0;
+
+static volatile bool     m_req_toggle      = false;
 #if EXP_HOPS_RUNTIME
-static volatile bool     m_req_hops       = false;
+static volatile bool     m_req_hops        = false;
 #endif
-static volatile bool     m_run_done       = false;
-static volatile bool     m_run_aborted    = false;
-static volatile bool     m_role_tx        = false;
-static volatile uint32_t m_tx_fail_total  = 0;
-static volatile uint32_t m_tx_fail_consec = 0;
-static volatile uint32_t m_last_err       = 0;
-static uint16_t          m_tx_dst         = 0xFFFF;
-static uint32_t          g_reset_reason   = 0;
- 
-static uint8_t m_cfg_ttl_pub  = 0xFF;
-static uint8_t m_cfg_rtx      = 0xFF;
-static uint8_t m_cfg_txcnt    = 0xFF;
-static int8_t  m_cfg_dbm      = 127;
-static uint8_t m_cfg_ttl_eff  = 0xFF;   
-static uint8_t m_cfg_relay_tx = 0xFF;   
-static int     m_cfg_srv_pub  = -1;
-static int     m_cfg_cli_pub  = -1;
-static char    m_cfg_buf[512];
-static char    m_line_buf[128];
- 
+#if EXP_TN3_PRESET_RUNTIME
+static volatile bool     m_req_tn3_preset  = false;
+#endif
+static volatile bool     m_run_done        = false;
+static volatile bool     m_run_aborted     = false;
+static volatile bool     m_role_tx         = false;
+static volatile uint32_t m_tx_fail_total   = 0;
+static volatile uint32_t m_tx_fail_consec  = 0;
+static volatile uint32_t m_last_err        = 0;
+static uint16_t          m_tx_dst          = 0xFFFF;
+static uint32_t          g_reset_reason    = 0;
+
+static uint8_t  m_cfg_ttl_pub      = 0xFF;
+static uint8_t  m_cfg_rtx          = 0xFF;
+static uint8_t  m_cfg_txcnt        = 0xFF;
+static uint16_t m_cfg_txint_ms     = 0;
+static int8_t   m_cfg_dbm          = 127;
+static uint8_t  m_cfg_ttl_eff      = EXP_DEFAULT_TTL_INIT;
+static uint8_t  m_cfg_relay_tx     = 0xFF;
+static uint8_t  m_cfg_relay_en     = 0xFF;
+static uint16_t m_cfg_relay_int_ms = 0;
+static int      m_cfg_srv_pub      = -1;
+static int      m_cfg_cli_pub      = -1;
+static char     m_cfg_buf[512];
+static char     m_line_buf[128];
+
 static bool rtt_write_line_reliable(const char *p, unsigned len)
 {
     uint32_t waited_ms = 0;
@@ -533,7 +592,7 @@ static bool rtt_write_line_reliable(const char *p, unsigned len)
     }
     return true;
 }
- 
+
 static void offline_log_store_tx(uint16_t seq, uint8_t ttl, bool is_alarm, uint32_t t_us)
 {
     if (!m_logging_enabled)
@@ -545,77 +604,177 @@ static void offline_log_store_tx(uint16_t seq, uint8_t ttl, bool is_alarm, uint3
         m_offline_dropped++;
         return;
     }
- 
-    m_offline_logs[m_offline_count].t_us        = t_us;
-    m_offline_logs[m_offline_count].seq_alarm   = ((is_alarm ? 1 : 0) << 15) | (seq & 0x7FFF);
-    m_offline_logs[m_offline_count].src         = (uint16_t)(node_address.address_start & 0xFFFF);
-    m_offline_logs[m_offline_count].ttl         = ttl;
-    m_offline_logs[m_offline_count].rssi        = 127;
-    m_offline_count++;
+
+    uint16_t idx = m_offline_count++;
+    m_offline_logs[idx].t_us       = t_us;
+    m_offline_logs[idx].seq_alarm  = ((is_alarm ? 1 : 0) << 15) | (seq & 0x7FFF);
+    m_offline_logs[idx].src        = (uint16_t)(node_address.address_start & 0xFFFF);
+    m_offline_logs[idx].ttl_evt_dc = PACK_TTL_EVT_DC(ttl, EXP_EVT_TX, 0);
+    m_offline_logs[idx].rssi       = 0;
 }
- 
-/* Giu nguyen chu ky ham cu phong khi file khac con goi. */
+
 void offline_log_push_tx(uint16_t seq, uint8_t ttl, bool is_alarm)
 {
     offline_log_store_tx(seq, ttl, is_alarm, get_local_time_us());
 }
- 
-/* Duoc goi tu handler nhan ban tin (file khac). Neu day la node dich thi phat nhom 3 xung:
- * suon len xung dau = moc nhan; moc thoi gian cuc bo lay NGAY SAU suon len. */
+
+void offline_log_push_relay(uint16_t src,
+                            uint16_t dst,
+                            uint32_t net_seq,
+                            uint8_t  ttl_tx,
+                            uint8_t  ttl_rx,
+                            int8_t   rssi)
+{
+    (void)dst;
+    (void)ttl_tx;
+    if (!m_logging_enabled)
+    {
+        return;
+    }
+
+    const uint32_t t_us = get_local_time_us();
+    uint16_t seq_15 = (uint16_t)(net_seq & 0x7FFF);
+
+    uint16_t clean_src = src;
+    if (clean_src % 2 == 0 && clean_src > 1)
+    {
+        clean_src -= 1;
+    }
+
+    m_relay_ok_cnt++;
+
+    if (m_offline_count < MAX_OFFLINE_RECORDS)
+    {
+        uint16_t idx = m_offline_count++;
+        m_offline_logs[idx].t_us       = t_us;
+        m_offline_logs[idx].seq_alarm  = seq_15;
+        m_offline_logs[idx].src        = clean_src;
+        m_offline_logs[idx].ttl_evt_dc = PACK_TTL_EVT_DC(ttl_rx, EXP_EVT_RELAY, 0);
+        m_offline_logs[idx].rssi       = rssi;
+    }
+    else
+    {
+        m_offline_dropped++;
+    }
+
+    log_uart_mesh_event("RELAY", clean_src, dst,
+                        seq_15, ttl_tx, ttl_rx, rssi,
+                        "TELEMETRY", EXP_PAYLOAD_LEN);
+}
+
+static inline void inc_record_dc(uint16_t idx)
+{
+    uint8_t v   = m_offline_logs[idx].ttl_evt_dc;
+    uint8_t ttl = UNPACK_TTL(v);
+    uint8_t evt = UNPACK_EVT(v);
+    uint8_t dc  = UNPACK_DC(v);
+    if (dc < 7)
+    {
+        dc++;
+        m_offline_logs[idx].ttl_evt_dc = PACK_TTL_EVT_DC(ttl, evt, dc);
+    }
+}
+
+void offline_log_on_drop_cache(uint16_t src,
+                               uint32_t net_seq,
+                               uint8_t  ttl_rx,
+                               int8_t   rssi)
+{
+    if (!m_logging_enabled)
+    {
+        return;
+    }
+
+    uint16_t own = (uint16_t)(node_address.address_start & 0xFFFF);
+    if (src == own || src == (uint16_t)(own + 1))
+    {
+        return;
+    }
+
+    m_drop_cache_cnt++;
+
+    uint16_t seq_15 = (uint16_t)(net_seq & 0x7FFF);
+    if (m_offline_count > 0)
+    {
+        uint16_t start = m_offline_count;
+        uint16_t limit = (start > 16) ? (start - 16) : 0;
+        for (uint16_t i = start; i > limit; i--)
+        {
+            uint16_t idx = i - 1;
+            if ((m_offline_logs[idx].seq_alarm & 0x7FFF) == seq_15)
+            {
+                inc_record_dc(idx);
+                goto log_live_drop;
+            }
+        }
+        inc_record_dc(m_offline_count - 1);
+    }
+
+log_live_drop:
+    log_uart_mesh_event("DROP_CACHE", src, own,
+                        seq_15, 0, ttl_rx, rssi,
+                        "DUPLICATE", EXP_PAYLOAD_LEN);
+}
+
 void offline_log_push(uint16_t src, uint8_t ttl, int8_t rssi, uint16_t payload)
 {
     if (!m_logging_enabled)
     {
         return;
     }
- 
+
     uint16_t own = (uint16_t)(node_address.address_start & 0xFFFF);
     if (src == own || src == (uint16_t)(own + 1))
     {
         return;
     }
- 
+
     const bool emit = exp_is_dest();
     if (emit)
     {
         exp_trig_begin();
     }
     const uint32_t t_us = get_local_time_us();
- 
+
     uint16_t raw_seq     = payload & 0x7FFF;
     uint8_t  traffic_bit = (payload >> 15) & 0x01;
- 
+
     uint16_t clean_src = src;
     if (clean_src % 2 == 0 && clean_src > 1)
     {
         clean_src -= 1;
     }
     g_display_src = (uint8_t)(clean_src & 0xFF);
- 
-    if (m_offline_count < MAX_OFFLINE_RECORDS)
+
+    m_rx_unique_cnt++;
+
+    if (emit)
     {
-        m_offline_logs[m_offline_count].t_us        = t_us;
-        m_offline_logs[m_offline_count].seq_alarm   = (traffic_bit << 15) | raw_seq;
-        m_offline_logs[m_offline_count].src         = clean_src;
-        m_offline_logs[m_offline_count].ttl         = ttl;
-        m_offline_logs[m_offline_count].rssi        = (rssi == 127) ? 126 : rssi;
-        m_offline_count++;
+        if (m_offline_count < MAX_OFFLINE_RECORDS)
+        {
+            uint16_t idx = m_offline_count++;
+            m_offline_logs[idx].t_us       = t_us;
+            m_offline_logs[idx].seq_alarm  = (traffic_bit << 15) | raw_seq;
+            m_offline_logs[idx].src        = clean_src;
+            m_offline_logs[idx].ttl_evt_dc = PACK_TTL_EVT_DC(ttl, EXP_EVT_RX, 0);
+            m_offline_logs[idx].rssi       = rssi;
+        }
+        else
+        {
+            m_offline_dropped++;
+        }
     }
-    else
-    {
-        m_offline_dropped++;
-    }
- 
+
     log_uart_mesh_event("RX", clean_src, node_address.address_start,
                         raw_seq, 0, ttl, rssi,
                         (traffic_bit ? "ALARM" : "TELEMETRY"), EXP_PAYLOAD_LEN);
- 
+
     if (emit)
     {
         exp_trig_end(EXP_TRIG_RX);
     }
 }
- 
+
 static void log_config_init(void)
 {
     SEGGER_RTT_Init();
@@ -624,9 +783,9 @@ static void log_config_init(void)
     {
         NRF_LOG_DEFAULT_BACKENDS_INIT();
     }
-    SEGGER_RTT_WriteString(0, "\r\n\r\n====== RTT DA KET NOI THANH CONG ======\r\n\r\n");
+    SEGGER_RTT_WriteString(0, "\r\n\r\n====== RTT DA KET NOI THANH CONG (TN3) ======\r\n\r\n");
 }
- 
+
 void mq2_saadc_init(void)
 {
     ret_code_t err_code;
@@ -636,7 +795,7 @@ void mq2_saadc_init(void)
     err_code = nrf_drv_saadc_channel_init(0, &channel_config);
     APP_ERROR_CHECK(err_code);
 }
- 
+
 uint16_t read_mq2_sensor(void)
 {
     nrf_saadc_value_t val;
@@ -644,27 +803,27 @@ uint16_t read_mq2_sensor(void)
     if (val < 0) val = 0;
     return (uint16_t)val;
 }
- 
+
 #define APP_LEVEL_ELEMENT_INDEX       (0)
 #define APP_FORCE_SEGMENTATION        (false)
 #define APP_MIC_SIZE                  (NRF_MESH_TRANSMIC_SIZE_SMALL)
 #define CLIENT_MODEL_INSTANCE_COUNT   (1)
 #define APP_LEVEL_DELAY_MS            (100)
 #define APP_LEVEL_TRANSITION_TIME_MS  (10)
- 
+
 static void app_generic_level_client_status_cb(const generic_level_client_t * p_self, const access_message_rx_meta_t * p_meta, const generic_level_status_params_t * p_in);
 static void app_gen_level_client_transaction_status_cb(access_model_handle_t model_handle, void * p_args, access_reliable_status_t status);
 static void app_gen_level_client_publish_interval_cb(access_model_handle_t handle, void * p_self);
- 
+
 static generic_level_client_t m_clients[CLIENT_MODEL_INSTANCE_COUNT];
- 
+
 const generic_level_client_callbacks_t client_cbs =
 {
     .level_status_cb = app_generic_level_client_status_cb,
     .ack_transaction_status_cb = app_gen_level_client_transaction_status_cb,
     .periodic_publish_cb = app_gen_level_client_publish_interval_cb
 };
- 
+
 static void app_generic_level_client_status_cb(const generic_level_client_t * p_self, const access_message_rx_meta_t * p_meta, const generic_level_status_params_t * p_in)
 {
     if (p_in->remaining_time_ms > 0)
@@ -677,7 +836,7 @@ static void app_generic_level_client_status_cb(const generic_level_client_t * p_
         __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Level server: 0x%04x, Present Level: %d\n", p_meta->src.value, p_in->present_level);
     }
 }
- 
+
 static void app_gen_level_client_transaction_status_cb(access_model_handle_t model_handle, void * p_args, access_reliable_status_t status)
 {
     switch (status)
@@ -696,17 +855,17 @@ static void app_gen_level_client_transaction_status_cb(access_model_handle_t mod
             break;
     }
 }
- 
+
 static void app_gen_level_client_publish_interval_cb(access_model_handle_t handle, void * p_self)
 {
      __LOG(LOG_SRC_APP, LOG_LEVEL_WARN, "Publish desired message here.\n");
 }
- 
+
 static void alarm_status_check(void)
 {
     if (nrf_gpio_pin_read(BSP_BUTTON_0) == false)
     {
-        m_present_level = _fireAlarmStatus;    
+        m_present_level = _fireAlarmStatus;
         bsp_board_led_on(BSP_BOARD_LED_3);
     }
     else
@@ -715,10 +874,10 @@ static void alarm_status_check(void)
         bsp_board_led_off(BSP_BOARD_LED_3);
     }
 }
- 
+
 static volatile uint16_t m_tx_packet_count = 0;
 static uint32_t m_global_seq = 0;
- 
+
 static void publish_present_alarm_status(bool _statusSending)
 {
     if (!_statusSending && m_tx_packet_count >= EXP_NUM_MSGS)
@@ -727,28 +886,28 @@ static void publish_present_alarm_status(bool _statusSending)
         m_run_done = true;
         return;
     }
- 
+
     uint8_t client = 0;
     static generic_level_set_params_t set_params = {0};
- 
+
     const char *p_class = "TELEMETRY";
     uint16_t traffic_bit = 0;
- 
+
     if (_statusSending)
     {
         traffic_bit = 1;
         p_class = "ALARM";
     }
- 
+
     static uint8_t m_tid_counter = 0;
     uint32_t next_seq = m_global_seq + 1;
     uint16_t seq_15bit = (uint16_t)(next_seq & 0x7FFF);
- 
+
     uint16_t payload = (traffic_bit << 15) | seq_15bit;
- 
+
     set_params.level = (int16_t)payload;
     set_params.tid   = m_tid_counter++;
- 
+
 #if EXP_SEND_UNACK
     if (m_tx_packet_count < 3) { EXP_STEP("set_unack"); }
 #else
@@ -758,41 +917,40 @@ static void publish_present_alarm_status(bool _statusSending)
     transition_params.transition_time_ms = APP_LEVEL_TRANSITION_TIME_MS;
     (void)access_model_reliable_cancel(m_clients[client].model_handle);
 #endif
- 
-    /* Moc TX: keo TRIG len NGAY TRUOC khi vao stack; lay moc cuc bo ngay sau do. */
+
     exp_trig_begin();
     const uint32_t t_tx_us = get_local_time_us();
- 
+
 #if EXP_SEND_UNACK
     uint32_t status = generic_level_client_set_unack(&m_clients[client], &set_params, NULL, 0);
 #else
     uint32_t status = generic_level_client_set(&m_clients[client], &set_params, &transition_params);
 #endif
- 
+
     exp_trig_end(EXP_TRIG_TX);
- 
+
     if (status == NRF_SUCCESS)
     {
         m_global_seq = next_seq;
         m_tx_fail_consec = 0;
- 
+
         if (!_statusSending)
         {
             m_tx_packet_count++;
         }
- 
+
         uint8_t current_ttl = 0xFF;
         (void)access_model_publish_ttl_get(m_clients[client].model_handle, &current_ttl);
-        if (current_ttl == 0xFF) 
-        { 
-            current_ttl = access_default_ttl_get(); 
+        if (current_ttl == 0xFF)
+        {
+            current_ttl = access_default_ttl_get();
         }
- 
+
         offline_log_store_tx(seq_15bit, current_ttl, _statusSending, t_tx_us);
- 
+
         log_uart_mesh_event("TX", node_address.address_start, m_tx_dst,
                             (uint32_t)seq_15bit, current_ttl, 0, 0, p_class, EXP_PAYLOAD_LEN);
- 
+
         if (!_statusSending && m_tx_packet_count >= EXP_NUM_MSGS)
         {
             periodic_message_allowed = false;
@@ -811,18 +969,20 @@ static void publish_present_alarm_status(bool _statusSending)
         }
     }
 }
- 
+
 static void mesh_main_button_event_handler(uint32_t button_number)
 {
     button_number++;
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Button %u pressed\n", button_number);
- 
+
     switch (button_number)
     {
         case 1:
 #if EXP_ENABLE_ALARM_BUTTON
             alarm_status_check();
             trigger_egu30_event();
+#elif EXP_TN3_PRESET_RUNTIME
+            m_req_tn3_preset = true;
 #elif EXP_HOPS_RUNTIME
             m_req_hops = true;
 #endif
@@ -835,12 +995,21 @@ static void mesh_main_button_event_handler(uint32_t button_number)
             break;
         case 4:
             clearAllDisplayNodes = true;
+            if (!periodic_message_allowed)
+            {
+                m_offline_count   = 0;
+                m_offline_dropped = 0;
+                m_drop_cache_cnt  = 0;
+                m_relay_ok_cnt    = 0;
+                m_rx_unique_cnt   = 0;
+                SEGGER_RTT_WriteString(0, "# [ACTION] Nut 4: Da xoa nhanh bo dem log RAM va thong ke CACHE.\r\n");
+            }
             break;
         default:
             break;
     }
 }
- 
+
 #if EXP_RTT_KEYS
 static void exp_rtt_key_handler(int key)
 {
@@ -848,9 +1017,15 @@ static void exp_rtt_key_handler(int key)
     {
         mesh_main_button_event_handler((uint32_t)(key - '1'));
     }
+    else if (key == 'c' || key == 'C')
+    {
+#if EXP_TN3_PRESET_RUNTIME
+        m_req_tn3_preset = true;
+#endif
+    }
 }
 #endif
- 
+
 void bsp_event_handler(bsp_event_t event)
 {
     switch (event)
@@ -865,7 +1040,7 @@ void bsp_event_handler(bsp_event_t event)
             break;
     }
 }
- 
+
 static void buttons_leds_init(bool * p_erase_bonds)
 {
     bsp_event_t startup_event;
@@ -875,7 +1050,7 @@ static void buttons_leds_init(bool * p_erase_bonds)
     APP_ERROR_CHECK(err_code);
     *p_erase_bonds = (startup_event == BSP_EVENT_CLEAR_BONDING_DATA);
 }
- 
+
 static void models_client_init_cb(void)
 {
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Initializing and adding models\n");
@@ -888,17 +1063,17 @@ static void models_client_init_cb(void)
         ERROR_CHECK(generic_level_client_init(&m_clients[i], i + 1));
     }
 }
- 
+
 static void mesh_events_handle(const nrf_mesh_evt_t * p_evt);
 static void app_level_server_set_cb(const app_level_server_t * p_server, uint32_t present_level);
 static void app_level_server_get_cb(const app_level_server_t * p_server, uint32_t * p_present_level);
 static void app_level_server_transition_cb(const app_level_server_t * p_server, uint32_t transition_time_ms, uint32_t target_level, app_transition_type_t transition_type);
- 
+
 static nrf_mesh_evt_handler_t m_event_handler =
 {
     .evt_cb = mesh_events_handle,
 };
- 
+
 APP_LEVEL_SERVER_DEF(m_level_server_0,
                      APP_FORCE_SEGMENTATION,
                      APP_MIC_SIZE,
@@ -906,20 +1081,20 @@ APP_LEVEL_SERVER_DEF(m_level_server_0,
                      app_level_server_set_cb,
                      app_level_server_get_cb,
                      app_level_server_transition_cb);
- 
+
 static void app_level_server_set_cb(const app_level_server_t * p_server, uint32_t present_level)
 {
     uint16_t payload     = (uint16_t)present_level;
     uint8_t  traffic_bit = (payload >> 15) & 0x01;
     uint16_t seq_num     = payload & 0x7FFF;
- 
+
     uint16_t raw_src = g_last_mesh_src_addr;
     uint16_t src_addr = raw_src;
     if (raw_src % 2 == 0 && raw_src > 1)
     {
         src_addr = raw_src - 1;
     }
- 
+
 #if EXP_LIVE_LOG
     SEGGER_RTT_printf(0, "[RX] Node: 0x%04X | %s | Seq: %u | RSSI: %d\r\n",
                       src_addr,
@@ -929,33 +1104,33 @@ static void app_level_server_set_cb(const app_level_server_t * p_server, uint32_
 #else
     (void)seq_num;
 #endif
- 
+
     uint32_t display_stat = (traffic_bit == 1) ? _fireAlarmStatus : _normalStatus;
     insert_node((uint8_t)(src_addr & 0xFF), display_stat, false);
- 
+
     refreshDisplayCounter = 1;
 }
- 
+
 static void app_level_server_get_cb(const app_level_server_t * p_server, uint32_t * p_present_level)
 {
     *p_present_level = (node_address.address_start << 16) + 6;
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "app_level_server_Get_cb\n\r");
 }
- 
-static void app_level_server_transition_cb(const app_level_server_t * p_server, 
-                                           uint32_t transition_time_ms, 
-                                           uint32_t target_level, 
+
+static void app_level_server_transition_cb(const app_level_server_t * p_server,
+                                           uint32_t transition_time_ms,
+                                           uint32_t target_level,
                                            app_transition_type_t transition_type)
 {
     (void)p_server; (void)transition_time_ms; (void)target_level; (void)transition_type;
 }
- 
+
 static void app_model_init(void)
 {
     ERROR_CHECK(app_level_init(&m_level_server_0, APP_LEVEL_ELEMENT_INDEX));
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "App Level Model handle: %d\n", m_level_server_0.server.model_handle);
 }
- 
+
 static void mesh_events_handle(const nrf_mesh_evt_t * p_evt)
 {
     if (p_evt->type == NRF_MESH_EVT_ENABLED)
@@ -963,7 +1138,7 @@ static void mesh_events_handle(const nrf_mesh_evt_t * p_evt)
         APP_ERROR_CHECK(app_level_value_restore(&m_level_server_0));
     }
 }
- 
+
 static void node_reset(void)
 {
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "----- Node reset  -----\n");
@@ -971,7 +1146,7 @@ static void node_reset(void)
     model_config_file_clear();
     mesh_stack_device_reset();
 }
- 
+
 static void config_server_evt_cb(const config_server_evt_t * p_evt)
 {
     if (p_evt->type == CONFIG_SERVER_EVT_NODE_RESET)
@@ -979,7 +1154,7 @@ static void config_server_evt_cb(const config_server_evt_t * p_evt)
         node_reset();
     }
 }
- 
+
 static void device_identification_start_cb(uint8_t attention_duration_s)
 {
     hal_led_mask_set(BLUE_LED_pos | YELLOW_LED_pos, false);
@@ -987,12 +1162,12 @@ static void device_identification_start_cb(uint8_t attention_duration_s)
                      LED_BLINK_ATTENTION_INTERVAL_MS,
                      LED_BLINK_ATTENTION_COUNT(attention_duration_s));
 }
- 
+
 static void provisioning_aborted_cb(void)
 {
     hal_led_blink_stop();
 }
- 
+
 static void unicast_address_print(void)
 {
     dsm_local_unicast_addresses_get(&node_address);
@@ -1000,7 +1175,7 @@ static void unicast_address_print(void)
     clientProvisionChanged = true;
     clientProvisioned = true;
 }
- 
+
 static void provisioning_complete_cb(void)
 {
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Successfully provisioned\n");
@@ -1010,34 +1185,34 @@ static void provisioning_complete_cb(void)
 #endif
     unicast_address_print();
 }
- 
+
 static void models_init_cb(void)
 {
     __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "Initializing and adding models\n");
     app_model_init();
     models_client_init_cb();
 }
- 
+
 static void mesh_init(void)
 {
     model_config_file_init();
- 
+
     mesh_stack_init_params_t init_params =
     {
-        .core.irq_priority       = NRF_MESH_IRQ_PRIORITY_LOWEST,  
+        .core.irq_priority       = NRF_MESH_IRQ_PRIORITY_LOWEST,
         .core.lfclksrc           = DEV_BOARD_LF_CLK_CFG,
         .core.p_uuid             = NULL,
         .models.models_init_cb   = models_init_cb,
         .models.config_server_cb = config_server_evt_cb
     };
- 
+
     uint32_t status = mesh_stack_init(&init_params, &m_device_provisioned);
- 
+
     if (status == NRF_SUCCESS)
     {
         status = model_config_file_config_apply();
     }
- 
+
     switch (status)
     {
         case NRF_ERROR_INVALID_DATA:
@@ -1050,27 +1225,26 @@ static void mesh_init(void)
             ERROR_CHECK(status);
     }
 }
- 
+
 static void initialize(void)
 {
     __LOG_INIT(LOG_SRC_APP, LOG_LEVEL_WARN, LOG_CALLBACK_DEFAULT);
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "----- BLE Mesh Sensor Node -----\n");
- 
+    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "----- BLE Mesh Sensor Node (TN3) -----\n");
+
     ERROR_CHECK(app_timer_init());
     hal_leds_init();
- 
+
 #if EXP_ENABLE_TRIG
     nrf_gpio_cfg_output(TRIG_PIN);
     nrf_gpio_pin_clear(TRIG_PIN);
 #endif
- 
+
     bool erase_bonds;
     buttons_leds_init(&erase_bonds);
     ble_stack_init();
- 
-    /* ??c MAC v? kh?i t?o ch? s? chu?i theo nguy?n t?c Fail-Closed */
+
     exp_chain_mac_init();
- 
+
     {
         uint32_t rr = 0;
         if (sd_power_reset_reason_get(&rr) == NRF_SUCCESS)
@@ -1079,22 +1253,22 @@ static void initialize(void)
             (void)sd_power_reset_reason_clr(0xFFFFFFFFu);
         }
     }
- 
+
 #if MESH_FEATURE_GATT_ENABLED
     gap_params_init();
     conn_params_init();
 #endif
- 
+
     hal_led_blink_stop();
     hal_led_mask_set(BLUE_LED_pos | YELLOW_LED_pos, LED_MASK_STATE_OFF);
-    hal_led_blink_ms(BLUE_LED_pos | YELLOW_LED_pos, LED_BLINK_INTERVAL_MS, LED_BLINK_CNT_PROV);    
+    hal_led_blink_ms(BLUE_LED_pos | YELLOW_LED_pos, LED_BLINK_INTERVAL_MS, LED_BLINK_CNT_PROV);
     mesh_init();
- 
+
 #if EXP_RTT_KEYS
     rtt_input_enable(exp_rtt_key_handler, 100);
 #endif
 }
- 
+
 static void start(void)
 {
     if (!m_device_provisioned)
@@ -1111,7 +1285,7 @@ static void start(void)
             .p_device_uri = EX_URI_DM_SERVER
         };
         ERROR_CHECK(mesh_provisionee_prov_start(&prov_start_params));
- 
+
         clientProvisionChanged = true;
         clientProvisioned = false;
     }
@@ -1119,35 +1293,35 @@ static void start(void)
     {
         unicast_address_print();
     }
- 
+
     mesh_app_uuid_print(nrf_mesh_configure_device_uuid_get());
     nrf_mesh_evt_handler_add(&m_event_handler);
     ERROR_CHECK(mesh_stack_start());
- 
+
     hal_led_mask_set(BLUE_LED_pos | YELLOW_LED_pos, LED_MASK_STATE_OFF);
     hal_led_blink_ms(BLUE_LED_pos | YELLOW_LED_pos, LED_BLINK_INTERVAL_MS, LED_BLINK_CNT_START);
 }
- 
+
 static void trigger_egu30_event(void)
 {
     NRF_EGU3->TASKS_TRIGGER[0] = 1;
 }
- 
+
 static void all_parameters_initialization(void)
 {
-    m_present_level = _normalStatus;       
+    m_present_level = _normalStatus;
     timerBCounter = 1;
-    periodic_message_allowed = false;      
+    periodic_message_allowed = false;
     aht10Available = true;
     _clientTemperature = 0;
     _clientHumidity = 0;
     clearAllDisplayNodes = false;
 }
- 
+
 void SWI3_EGU3_IRQHandler(void)
-{   
+{
     NRF_EGU3->EVENTS_TRIGGERED[0] = 0;
- 
+
     if (_getResetProvisionKey)
     {
         if (mesh_stack_is_device_provisioned())
@@ -1156,7 +1330,7 @@ void SWI3_EGU3_IRQHandler(void)
             node_reset();
         }
     }
- 
+
     if (m_present_level == _fireAlarmStatus)
     {
         publish_present_alarm_status(true);
@@ -1166,20 +1340,20 @@ void SWI3_EGU3_IRQHandler(void)
         publish_present_alarm_status(false);
     }
 }
- 
+
 static void egu_init(void)
-{  
+{
     NRF_EGU3->INTENSET = EGU_INTENSET_TRIGGERED0_Enabled << EGU_INTENSET_TRIGGERED0_Pos;
     NVIC_SetPriority(SWI3_EGU3_IRQn, 6);
     NVIC_EnableIRQ(SWI3_EGU3_IRQn);
 }
- 
+
 void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
 {
     static char err_buf[160];
     const uint32_t ram_end = 0x20000000u + (NRF_FICR->INFO.RAM * 1024u);
     bool info_ok = (info >= 0x20000000u) && ((info & 3u) == 0u) && ((info + 12u) <= ram_end);
- 
+
     if (id == NRF_FAULT_ID_SDK_ERROR && info_ok)
     {
         const error_info_t * e = (const error_info_t *)info;
@@ -1203,7 +1377,7 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
     }
     uart_puts(err_buf);
     SEGGER_RTT_WriteString(0, err_buf);
- 
+
 #if EXP_HALT_ON_FAULT
     while (1)
     {
@@ -1214,27 +1388,27 @@ void app_error_fault_handler(uint32_t id, uint32_t pc, uint32_t info)
     while (1) {}
 #endif
 }
- 
+
 nrfx_wdt_channel_id m_channel_id;
- 
+
 void wd_event_handle(void)
 {
 }
- 
+
 void wdt_init(void)
 {
-    uint32_t err_code = NRF_SUCCESS;  
-    nrfx_wdt_config_t w_config = NRFX_WDT_DEAFULT_CONFIG; 
-    err_code = nrfx_wdt_init(&w_config, wd_event_handle); 
+    uint32_t err_code = NRF_SUCCESS;
+    nrfx_wdt_config_t w_config = NRFX_WDT_DEAFULT_CONFIG;
+    err_code = nrfx_wdt_init(&w_config, wd_event_handle);
     APP_ERROR_CHECK(err_code);
-    err_code = nrfx_wdt_channel_alloc(&m_channel_id); 
+    err_code = nrfx_wdt_channel_alloc(&m_channel_id);
     APP_ERROR_CHECK(err_code);
-    nrfx_wdt_enable(); 
+    nrfx_wdt_enable();
 }
- 
-#define resetProvisionLED     18    
+
+#define resetProvisionLED     18
 #define resetProvisionBTN     13
- 
+
 bool checktoResetProvisioned(void)
 {
     nrf_gpio_cfg_output(resetProvisionLED);
@@ -1260,13 +1434,13 @@ bool checktoResetProvisioned(void)
     }
     return _checkresetProvision;
 }
- 
+
 void display_ClientStatus(void)
 {
     if (clientProvisionChanged)
     {
         if (clientProvisioned)
-        {  
+        {
             char _buff[100];
             sprintf(_buff, "0x%04x", node_address.address_start);
             glcd_display_stationAddress(_buff);
@@ -1281,7 +1455,7 @@ void display_ClientStatus(void)
         clientProvisionChanged = false;
     }
 }
- 
+
 #if EXP_READ_CFG
 static bool model_pub_dst_get(access_model_handle_t h, uint16_t * p_dst)
 {
@@ -1297,28 +1471,31 @@ static bool model_pub_dst_get(access_model_handle_t h, uint16_t * p_dst)
     return false;
 }
 #endif
- 
+
 static void exp_cfg_capture(void)
 {
-    m_cfg_ttl_pub  = 0xFF;
-    m_cfg_rtx      = 0xFF;
-    m_cfg_txcnt    = 0xFF;
-    m_cfg_dbm      = 127;
-    m_cfg_ttl_eff  = 0xFF;
-    m_cfg_relay_tx = 0xFF;
-    m_cfg_srv_pub  = -1;
-    m_cfg_cli_pub  = -1;
-    m_tx_dst       = 0xFFFF;
- 
+    m_cfg_ttl_pub      = 0xFF;
+    m_cfg_rtx          = 0xFF;
+    m_cfg_txcnt        = 0xFF;
+    m_cfg_txint_ms     = 0;
+    m_cfg_dbm          = 127;
+    m_cfg_ttl_eff      = EXP_DEFAULT_TTL_INIT;
+    m_cfg_relay_tx     = 0xFF;
+    m_cfg_relay_en     = 0xFF;
+    m_cfg_relay_int_ms = 0;
+    m_cfg_srv_pub      = -1;
+    m_cfg_cli_pub      = -1;
+    m_tx_dst           = 0xFFFF;
+
     if (!mesh_stack_is_device_provisioned())
     {
         return;
     }
- 
+
 #if EXP_READ_CFG
     (void)access_model_publish_ttl_get(m_clients[0].model_handle, &m_cfg_ttl_pub);
     m_cfg_ttl_eff = (m_cfg_ttl_pub == 0xFF) ? access_default_ttl_get() : m_cfg_ttl_pub;
- 
+
     access_publish_retransmit_t rtx;
     if (access_model_publish_retransmit_get(m_clients[0].model_handle, &rtx) == NRF_SUCCESS)
     {
@@ -1328,25 +1505,28 @@ static void exp_cfg_capture(void)
     {
         m_cfg_rtx = 0xFF;
     }
- 
+
     EXP_STEP("opt_read");
     mesh_opt_core_adv_t adv_r;
     radio_tx_power_t pw;
     if (mesh_opt_core_adv_get(CORE_TX_ROLE_ORIGINATOR, &adv_r) == NRF_SUCCESS)
     {
-        m_cfg_txcnt = (uint8_t)adv_r.tx_count;
+        m_cfg_txcnt    = (uint8_t)adv_r.tx_count;
+        m_cfg_txint_ms = (uint16_t)adv_r.tx_interval_ms;
     }
     if (mesh_opt_core_tx_power_get(CORE_TX_ROLE_ORIGINATOR, &pw) == NRF_SUCCESS)
     {
         m_cfg_dbm = (int8_t)pw;
     }
- 
+
     mesh_opt_core_adv_t adv_rl;
     if (mesh_opt_core_adv_get(CORE_TX_ROLE_RELAY, &adv_rl) == NRF_SUCCESS)
     {
-        m_cfg_relay_tx = (uint8_t)adv_rl.tx_count;
+        m_cfg_relay_tx     = (uint8_t)adv_rl.tx_count;
+        m_cfg_relay_en     = adv_rl.enabled ? 1 : 0;
+        m_cfg_relay_int_ms = (uint16_t)adv_rl.tx_interval_ms;
     }
- 
+
     uint16_t dst = 0xFFFF;
     m_cfg_srv_pub = model_pub_dst_get(m_level_server_0.server.model_handle, &dst) ? 1 : 0;
     if (model_pub_dst_get(m_clients[0].model_handle, &dst))
@@ -1360,19 +1540,27 @@ static void exp_cfg_capture(void)
     }
 #endif
 }
- 
+
 static void exp_cfg_line(char * out, size_t n)
 {
+    const exp_tn3_cfg_t * p_preset = &EXP_TN3_TABLE[m_tn3_cfg_idx];
     snprintf(out, n,
              "# CFG exp=%u;fw=%s;role=%s;num_msgs=%u;period_ms=%u;payload_len=%u;hops=%u;"
-             "ttl_cfg=%u;ttl_pub=%u;ttl_eff=%u;pub_rtx=%u;net_tx_cfg=%u;net_tx_now=%u;tx_dbm_cfg=%d;tx_dbm_now=%d;relay_tx_now=%u;"
+             "tn3_idx=%u;tn3_tag=r%u_t%u_ttl%u;"
+             "ttl_cfg=%u;ttl_pub=%u;ttl_eff=%u;pub_rtx=%u;"
+             "net_tx_cfg=%u;net_tx_now=%u;net_int_ms=%u;"
+             "tx_dbm_cfg=%d;tx_dbm_now=%d;"
+             "relay_en=%u;relay_tx_now=%u;relay_int_ms=%u;"
              "chain_idx=%d;mac=%02X%02X%02X%02X%02X%02X;"
              "opts=%s;srv_pub=%d;cli_pub=%d;cli_dst=0x%04X;tx_fail=%u;last_err=0x%08X;reset=0x%08X",
              (unsigned)EXP_ID, FW_GIT_HASH, m_role_tx ? "TX" : "RX",
              (unsigned)EXP_NUM_MSGS, (unsigned)EXP_PERIOD_MS, (unsigned)EXP_PAYLOAD_LEN, (unsigned)g_exp_hops,
-             (unsigned)EXP_TTL, (unsigned)m_cfg_ttl_pub, (unsigned)m_cfg_ttl_eff, (unsigned)m_cfg_rtx,
-             (unsigned)EXP_NET_TX_COUNT, (unsigned)m_cfg_txcnt,
-             (int)EXP_TX_POWER_DBM, (int)m_cfg_dbm, (unsigned)m_cfg_relay_tx,
+             (unsigned)m_tn3_cfg_idx,
+             (unsigned)p_preset->relay_retx, (unsigned)p_preset->net_tx, (unsigned)p_preset->ttl,
+             (unsigned)p_preset->ttl, (unsigned)m_cfg_ttl_pub, (unsigned)m_cfg_ttl_eff, (unsigned)m_cfg_rtx,
+             (unsigned)p_preset->net_tx, (unsigned)m_cfg_txcnt, (unsigned)m_cfg_txint_ms,
+             (int)EXP_TX_POWER_DBM, (int)m_cfg_dbm,
+             (unsigned)m_cfg_relay_en, (unsigned)m_cfg_relay_tx, (unsigned)m_cfg_relay_int_ms,
              (int)m_my_chain_index,
              m_my_ble_addr.addr[5], m_my_ble_addr.addr[4], m_my_ble_addr.addr[3],
              m_my_ble_addr.addr[2], m_my_ble_addr.addr[1], m_my_ble_addr.addr[0],
@@ -1384,7 +1572,64 @@ static void exp_cfg_line(char * out, size_t n)
              m_cfg_srv_pub, m_cfg_cli_pub, (unsigned)m_tx_dst,
              (unsigned)m_tx_fail_total, (unsigned)m_last_err, (unsigned)g_reset_reason);
 }
- 
+
+#if EXP_TN3_PRESET_RUNTIME
+static void exp_tn3_apply_preset(uint8_t idx)
+{
+    if (idx >= EXP_TN3_NUM_CFGS)
+    {
+        idx = 0;
+    }
+    m_tn3_cfg_idx = idx;
+    const exp_tn3_cfg_t * p = &EXP_TN3_TABLE[idx];
+
+    (void)access_default_ttl_set(p->ttl);
+    (void)access_model_publish_ttl_set(m_clients[0].model_handle, p->ttl);
+
+    mesh_opt_core_adv_t adv_org;
+    if (mesh_opt_core_adv_get(CORE_TX_ROLE_ORIGINATOR, &adv_org) == NRF_SUCCESS)
+    {
+        adv_org.enabled        = true;
+        adv_org.tx_count       = (p->net_tx > 0) ? p->net_tx : 1;
+        adv_org.tx_interval_ms = 20;
+        (void)mesh_opt_core_adv_set(CORE_TX_ROLE_ORIGINATOR, &adv_org);
+    }
+
+    mesh_opt_core_adv_t adv_rel;
+    if (mesh_opt_core_adv_get(CORE_TX_ROLE_RELAY, &adv_rel) == NRF_SUCCESS)
+    {
+        adv_rel.enabled        = true;
+        adv_rel.tx_count       = p->relay_retx + 1;
+        adv_rel.tx_interval_ms = 20;
+        (void)mesh_opt_core_adv_set(CORE_TX_ROLE_RELAY, &adv_rel);
+    }
+
+    exp_cfg_capture();
+    exp_cfg_line(m_cfg_buf, sizeof(m_cfg_buf));
+    SEGGER_RTT_WriteString(0, m_cfg_buf);
+    SEGGER_RTT_WriteString(0, "\r\n");
+    SEGGER_RTT_printf(0, "# [TN3_PRESET] idx=%u/23 | tag=r%u_t%u_ttl%u | Verify: ttl_eff=%u, net_tx_now=%u, relay_tx_now=%u\r\n",
+                      (unsigned)idx,
+                      (unsigned)p->relay_retx, (unsigned)p->net_tx, (unsigned)p->ttl,
+                      (unsigned)m_cfg_ttl_eff, (unsigned)m_cfg_txcnt, (unsigned)m_cfg_relay_tx);
+
+    hal_led_blink_stop();
+    hal_led_mask_set(BLUE_LED_pos | YELLOW_LED_pos, LED_MASK_STATE_OFF);
+    hal_led_blink_ms(BLUE_LED_pos, 150, (idx % 4) + 1);
+}
+
+static void exp_tn3_preset_cycle(void)
+{
+    if (periodic_message_allowed || (m_offline_count > 0))
+    {
+        SEGGER_RTT_WriteString(0, "# [LOI] Dang chay hoac con log chua xa -> bam Nut 3 (xa log) hoac Nut 4 (xoa log) truoc.\r\n");
+        return;
+    }
+    uint8_t next_idx = (uint8_t)((m_tn3_cfg_idx + 1) % EXP_TN3_NUM_CFGS);
+    exp_tn3_apply_preset(next_idx);
+}
+#endif
+
 #if EXP_HOPS_RUNTIME
 static void exp_hops_cycle(void)
 {
@@ -1393,18 +1638,17 @@ static void exp_hops_cycle(void)
         SEGGER_RTT_WriteString(0, "# [LOI] Dang chay hoac con log chua xa -> khong doi so chang.\r\n");
         return;
     }
- 
+
     g_exp_hops = (uint8_t)((g_exp_hops >= 4) ? 1 : (g_exp_hops + 1));
     SEGGER_RTT_printf(0, "# [INFO] Cau hinh %u chang | ttl_rx du kien tai GW = %d\r\n",
-                      (unsigned)g_exp_hops, (int)EXP_TTL - ((int)g_exp_hops - 1));
- 
-    /* Phan hoi bang LED de nhin duoc khi khong cam J-Link */
+                      (unsigned)g_exp_hops, (int)m_cfg_ttl_eff - ((int)g_exp_hops - 1));
+
     hal_led_blink_stop();
     hal_led_mask_set(BLUE_LED_pos | YELLOW_LED_pos, LED_MASK_STATE_OFF);
     hal_led_blink_ms(BLUE_LED_pos, 300, g_exp_hops);
 }
 #endif
- 
+
 static void exp_toggle_run(void)
 {
     if (periodic_message_allowed)
@@ -1418,7 +1662,7 @@ static void exp_toggle_run(void)
         SEGGER_RTT_WriteString(0, "# [LOI] Chua provision.\r\n");
         return;
     }
- 
+
 #if EXP_HOP_WHITELIST
     if (m_my_chain_index == -1)
     {
@@ -1426,53 +1670,50 @@ static void exp_toggle_run(void)
         return;
     }
 #endif
- 
+
     if (m_offline_count > 0)
     {
-        SEGGER_RTT_printf(0, "# [LOI] Con %u dong chua xa! Bam Nut 3 de xa log truoc khi bat run moi.\r\n",
+        SEGGER_RTT_printf(0, "# [LOI] Con %u dong chua xa! Bam Nut 3 de xa log (hoac Nut 4 de xoa) truoc khi bat run moi.\r\n",
                           (unsigned)m_offline_count);
         return;
     }
- 
+
     EXP_STEP("cfg_capture");
     exp_cfg_capture();
- 
+
     bool is_tx = (EXP_READ_CFG == 0) || (m_cfg_cli_pub == 1);
- 
+
     m_offline_dropped = 0;
+    m_drop_cache_cnt  = 0;
+    m_relay_ok_cnt    = 0;
+    m_rx_unique_cnt   = 0;
+    m_trig_cnt[1]     = 0;
+    m_trig_cnt[2]     = 0;
+    m_trig_cnt[3]     = 0;
     m_logging_enabled = true;
-    exp_time_reset();   /* t_local_us bat dau tu 0 o moi run */
- 
+    exp_time_reset();
+
     if (!is_tx)
     {
         m_role_tx = false;
         #if EXP_DEBUG_RX_MAC
-        g_dbg_rx_mac_left = 5; /* Cho ph?p in 5 g?i ti?p theo ra RTT */
+        g_dbg_rx_mac_left = 5;
         #endif
         exp_cfg_line(m_cfg_buf, sizeof(m_cfg_buf));
         SEGGER_RTT_WriteString(0, m_cfg_buf);
-        SEGGER_RTT_WriteString(0, "\r\n# [ACTION] BO THU: da san sang nhan.\r\n");
+        SEGGER_RTT_WriteString(0, "\r\n# [ACTION] BO THU / RELAY: da san sang nhan va dem DROP_CACHE.\r\n");
         return;
     }
- 
+
 #if EXP_READ_CFG
     bool ttl_bad = (EXP_TTL != 0xFF) && (m_cfg_ttl_eff != EXP_TTL);
     bool rtx_bad = (m_cfg_rtx != 0);
     if (ttl_bad || rtx_bad)
     {
-        SEGGER_RTT_printf(0, "# [LOI] Publish cua client sai: ttl=%u (can %u), retransmit=%u (can 0). "
+        SEGGER_RTT_printf(0, "# [LOI] Publish cua client sai: ttl=%u, publish_retransmit=%u (can 0). "
                              "Dat trong nRF Mesh app roi bam Nut 2 lai.\r\n",
-                          (unsigned)m_cfg_ttl_eff, (unsigned)EXP_TTL, (unsigned)m_cfg_rtx);
+                          (unsigned)m_cfg_ttl_eff, (unsigned)m_cfg_rtx);
         return;
-    }
-    if ((EXP_NET_TX_COUNT != 0xFF) && (m_cfg_txcnt != 0xFF) && (m_cfg_txcnt != EXP_NET_TX_COUNT))
-    {
-        SEGGER_RTT_printf(0, "# [CANH BAO] Network Transmit Count = %u, can %u. Dat bang Config Network Transmit trong app.\r\n",
-                          (unsigned)m_cfg_txcnt, (unsigned)EXP_NET_TX_COUNT);
-#if EXP_STRICT_CFG
-        SEGGER_RTT_WriteString(0, "# [LOI] EXP_STRICT_CFG=1: sai Network Transmit Count -> TU CHOI chay.\r\n");
-        return;
-#endif
     }
     if ((m_cfg_dbm != 127) && (m_cfg_dbm != (int8_t)EXP_TX_POWER_DBM))
     {
@@ -1480,7 +1721,7 @@ static void exp_toggle_run(void)
                           (int)m_cfg_dbm, (int)EXP_TX_POWER_DBM);
     }
 #endif
- 
+
     m_tx_packet_count = 0;
     m_global_seq      = 0;
     m_tx_fail_total   = 0;
@@ -1489,34 +1730,37 @@ static void exp_toggle_run(void)
     m_run_done        = false;
     m_run_aborted     = false;
     m_role_tx         = true;
- 
+
     exp_cfg_line(m_cfg_buf, sizeof(m_cfg_buf));
     SEGGER_RTT_WriteString(0, m_cfg_buf);
     SEGGER_RTT_WriteString(0, "\r\n");
-    SEGGER_RTT_printf(0, "# [ACTION] Bat dau run moi (muc tieu %u goi)\r\n", (unsigned)EXP_NUM_MSGS);
+    SEGGER_RTT_printf(0, "# [ACTION] Bat dau run TN3 (muc tieu %u goi | ttl_eff=%u | net_tx=%u)\r\n",
+                      (unsigned)EXP_NUM_MSGS, (unsigned)m_cfg_ttl_eff, (unsigned)m_cfg_txcnt);
     EXP_STEP("run_start");
- 
+
     periodic_message_allowed = true;
 }
- 
+
 static void exp_dump_log(void)
 {
     bool aborted = false;
     uint16_t n = m_offline_count;
- 
+
     m_logging_enabled = false;
     periodic_message_allowed = false;
- 
+
     SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
- 
+
     exp_cfg_line(m_cfg_buf, sizeof(m_cfg_buf));
     if (!rtt_write_line_reliable(m_cfg_buf, (unsigned)strlen(m_cfg_buf)) ||
         !rtt_write_line_reliable("\r\n", 2))
     {
         aborted = true;
     }
- 
-    /* Dong dem xung de doi chieu voi so nhom xung PPK2 bat duoc tren kenh cua node nay. */
+
+    const int ttl_origin = (m_cfg_ttl_eff != 0xFF) ? (int)m_cfg_ttl_eff : (int)EXP_DEFAULT_TTL_INIT;
+    const int exp_ttl_rx = ttl_origin - ((int)g_exp_hops - 1);
+
     if (!aborted)
     {
         int l = snprintf(m_cfg_buf, sizeof(m_cfg_buf),
@@ -1527,43 +1771,66 @@ static void exp_dump_log(void)
                          (unsigned)m_trig_cnt[EXP_TRIG_RX],
                          (unsigned)m_tx_packet_count, (unsigned)m_tx_fail_total,
                          (unsigned)TRIG_WIDTH_US, (unsigned)TRIG_GAP_US,
-                         (unsigned)g_exp_hops, (int)EXP_TTL - ((int)g_exp_hops - 1));
+                         (unsigned)g_exp_hops, exp_ttl_rx);
         if (l > 0 && !rtt_write_line_reliable(m_cfg_buf, (unsigned)l))
         {
             aborted = true;
         }
     }
- 
+
+    if (!aborted)
+    {
+        uint32_t unique_seen = (m_relay_ok_cnt > 0) ? m_relay_ok_cnt : m_rx_unique_cnt;
+        uint32_t total_seen  = unique_seen + m_drop_cache_cnt;
+        uint32_t rho_permil  = (total_seen > 0) ? ((m_drop_cache_cnt * 1000u) / total_seen) : 0u;
+        int l = snprintf(m_cfg_buf, sizeof(m_cfg_buf),
+                         "# CACHE relay_ok=%u;rx_unique=%u;drop_cache=%u;total_seen=%u;rho=%u.%03u;rho_pct=%u.%u\r\n",
+                         (unsigned)m_relay_ok_cnt, (unsigned)m_rx_unique_cnt,
+                         (unsigned)m_drop_cache_cnt, (unsigned)total_seen,
+                         (unsigned)(rho_permil / 1000u), (unsigned)(rho_permil % 1000u),
+                         (unsigned)(rho_permil / 10u), (unsigned)(rho_permil % 10u));
+        if (l > 0 && !rtt_write_line_reliable(m_cfg_buf, (unsigned)l))
+        {
+            aborted = true;
+        }
+    }
+
 #if EXP_HOP_WHITELIST
-    /* Kiem chung so chang (huong dan TN2 buoc 5): ti le goi co ttl_rx dung du kien, chi o GW. */
     if (!aborted && exp_is_dest())
     {
-        const int exp_ttl_rx = (int)EXP_TTL - ((int)g_exp_hops - 1);
         uint32_t rx_rows = 0, rx_ok = 0;
         for (uint16_t i = 0; i < n; i++)
         {
-            if (m_offline_logs[i].rssi != 127)
+            if (UNPACK_EVT(m_offline_logs[i].ttl_evt_dc) == EXP_EVT_RX)
             {
                 rx_rows++;
-                if ((int)m_offline_logs[i].ttl == exp_ttl_rx)
+                if ((int)UNPACK_TTL(m_offline_logs[i].ttl_evt_dc) == exp_ttl_rx)
                 {
                     rx_ok++;
                 }
             }
         }
         const uint32_t pct10 = (rx_rows > 0) ? ((rx_ok * 1000u) / rx_rows) : 0u;
+        const char * verdict = "FAIL";
+        if (exp_ttl_rx <= 0 && rx_rows == 0)
+        {
+            verdict = "PASS_TTL_BOUND";
+        }
+        else if (rx_rows > 0 && pct10 >= 950u)
+        {
+            verdict = "PASS";
+        }
         int l = snprintf(m_cfg_buf, sizeof(m_cfg_buf),
                          "# HOPCHECK hops=%u;ttl_rx_exp=%d;match=%u;rx_rows=%u;pct=%u.%u;verdict=%s\r\n",
                          (unsigned)g_exp_hops, exp_ttl_rx, (unsigned)rx_ok, (unsigned)rx_rows,
-                         (unsigned)(pct10 / 10u), (unsigned)(pct10 % 10u),
-                         (rx_rows > 0 && pct10 >= 950u) ? "PASS" : "FAIL");
+                         (unsigned)(pct10 / 10u), (unsigned)(pct10 % 10u), verdict);
         if (l > 0 && !rtt_write_line_reliable(m_cfg_buf, (unsigned)l))
         {
             aborted = true;
         }
     }
 #endif
- 
+
     int len = snprintf(m_line_buf, sizeof(m_line_buf),
                        "--- BAT DAU XA LOG CSV --- SO DONG: %u; BI TRAN BUFFER: %u ---\r\n",
                        (unsigned)n, (unsigned)m_offline_dropped);
@@ -1571,66 +1838,79 @@ static void exp_dump_log(void)
     {
         aborted = true;
     }
- 
+
     static const char header[] =
-        "t_local_us,node_id,event,src,dst,seq,ttl_tx,ttl_rx,rssi,class,payload_len\r\n";
+        "t_local_us,node_id,event,src,dst,seq,ttl_tx,ttl_rx,rssi,class,payload_len,DROP_CACHE\r\n";
     if (!aborted && !rtt_write_line_reliable(header, sizeof(header) - 1))
     {
         aborted = true;
     }
- 
+
     uint16_t my_id = (uint16_t)(node_address.address_start & 0xFFFF);
- 
+
     for (uint16_t i = 0; (i < n) && !aborted; i++)
     {
         nrf_drv_wdt_channel_feed(m_channel_id);
- 
+
         uint16_t seq      = m_offline_logs[i].seq_alarm & 0x7FFF;
         bool     is_alarm = (m_offline_logs[i].seq_alarm >> 15) & 0x01;
-        uint8_t  ttl_val  = m_offline_logs[i].ttl;
-        bool     is_tx    = (m_offline_logs[i].rssi == 127);
- 
-        uint16_t src      = is_tx ? my_id : m_offline_logs[i].src;
-        uint16_t dst      = is_tx ? m_tx_dst : my_id;
-        uint8_t  ttl_tx   = is_tx ? ttl_val : 0;
-        uint8_t  ttl_rx   = is_tx ? 0 : ttl_val;
-        int      rssi_out = is_tx ? 0 : (int)m_offline_logs[i].rssi;
- 
+        uint8_t  packed   = m_offline_logs[i].ttl_evt_dc;
+        uint8_t  evt      = UNPACK_EVT(packed);
+        uint8_t  ttl_val  = UNPACK_TTL(packed);
+        uint8_t  dc_val   = UNPACK_DC(packed);
+
+        const char * evt_str = (evt == EXP_EVT_TX) ? "TX" :
+                               ((evt == EXP_EVT_RELAY) ? "RELAY" : "RX");
+
+        uint16_t dst      = (evt == EXP_EVT_RX) ? my_id : m_tx_dst;
+        uint8_t  ttl_tx   = (evt == EXP_EVT_TX) ? ttl_val :
+                            ((evt == EXP_EVT_RELAY && ttl_val > 0) ? (uint8_t)(ttl_val - 1) : 0);
+        uint8_t  ttl_rx   = (evt == EXP_EVT_TX) ? 0 : ttl_val;
+
         len = snprintf(m_line_buf, sizeof(m_line_buf),
-                       "%u,0x%04X,%s,0x%04X,0x%04X,%u,%u,%u,%d,%s,%u\r\n",
+                       "%u,0x%04X,%s,0x%04X,0x%04X,%u,%u,%u,%d,%s,%u,%u\r\n",
                        (unsigned)m_offline_logs[i].t_us,
                        (unsigned)my_id,
-                       is_tx ? "TX" : "RX",
-                       (unsigned)src,
+                       evt_str,
+                       (unsigned)m_offline_logs[i].src,
                        (unsigned)dst,
                        (unsigned)seq,
                        (unsigned)ttl_tx,
                        (unsigned)ttl_rx,
-                       rssi_out,
+                       (int)m_offline_logs[i].rssi,
                        is_alarm ? "ALARM" : "TELEMETRY",
-                       (unsigned)EXP_PAYLOAD_LEN);
- 
+                       (unsigned)EXP_PAYLOAD_LEN,
+                       (unsigned)dc_val);
+
         if (len > 0 && !rtt_write_line_reliable(m_line_buf, (unsigned)len))
         {
             aborted = true;
         }
     }
- 
+
     if (aborted)
     {
         SEGGER_RTT_WriteString(0, "\r\n[LOI] RTT chua mo hoac bi nghen! Du lieu van giu trong RAM, hay bam Nut 3 lai.\r\n");
         return;
     }
- 
+
     (void)rtt_write_line_reliable("--- KET THUC XA LOG ---\r\n", sizeof("--- KET THUC XA LOG ---\r\n") - 1);
- 
-    m_offline_count = 0;
+
+    m_offline_count   = 0;
     m_offline_dropped = 0;
     m_logging_enabled = true;
 }
- 
+
 static void exp_requests_service(void)
 {
+#if EXP_TN3_PRESET_RUNTIME
+    if (m_req_tn3_preset)
+    {
+        m_req_tn3_preset = false;
+        exp_tn3_preset_cycle();
+    }
+#endif
+
 #if EXP_HOPS_RUNTIME
     if (m_req_hops)
     {
@@ -1638,20 +1918,20 @@ static void exp_requests_service(void)
         exp_hops_cycle();
     }
 #endif
- 
+
     if (m_req_toggle)
     {
         m_req_toggle = false;
         exp_toggle_run();
     }
- 
+
     if (m_run_done)
     {
         m_run_done = false;
-        SEGGER_RTT_printf(0, "# [INFO] Du %u goi. Cam J-Link + RTT Viewer roi bam Nut 3 de xa log.\r\n",
+        SEGGER_RTT_printf(0, "# [INFO] Du %u goi TN3. Cam J-Link + RTT Viewer roi bam Nut 3 de xa log.\r\n",
                           (unsigned)EXP_NUM_MSGS);
     }
- 
+
     if (m_run_aborted)
     {
         m_run_aborted = false;
@@ -1659,7 +1939,7 @@ static void exp_requests_service(void)
                              "0x5 = chua co publish address, 0x8 = chua provision.\r\n",
                           (unsigned)EXP_MAX_TX_FAIL, (unsigned)m_last_err);
     }
- 
+
     if (m_dump_requested)
     {
         SEGGER_RTT_WriteString(0, "[ACTION] Nhan Nut 3 -> Dang xa log...\r\n");
@@ -1667,98 +1947,100 @@ static void exp_requests_service(void)
         m_dump_requested = false;
     }
 }
- 
+
 int main(void)
 {
     log_config_init();
     SEGGER_RTT_WriteString(0, "-> Qua log_config_init\r\n");
- 
+
     _getResetProvisionKey = checktoResetProvisioned();
     SEGGER_RTT_WriteString(0, "-> Qua checktoResetProvisioned\r\n");
- 
+
     all_parameters_initialization();
     uart_init();
     SEGGER_RTT_WriteString(0, "-> Qua uart_init\r\n");
- 
+
     mq2_saadc_init();
     SEGGER_RTT_WriteString(0, "-> Qua mq2_saadc_init\r\n");
- 
+
     glcd_display_initialization();
     SEGGER_RTT_WriteString(0, "-> Qua glcd_init\r\n");
- 
+
     glcd_printText("Nodes:", 1, 40, TFT_WHITE, TFT_BLACK);
     SEGGER_RTT_WriteString(0, "-> Qua glcd_printText\r\n");
- 
+
     initialize();
     SEGGER_RTT_WriteString(0, "-> Qua initialize\r\n");
- 
+
     start();
     SEGGER_RTT_WriteString(0, "-> Qua start (Mesh da chay)\r\n");
- 
+
     wdt_init();
     SEGGER_RTT_WriteString(0, "-> Qua wdt_init\r\n");
- 
+
     custom_timer_init();
     SEGGER_RTT_WriteString(0, "-> Qua custom_timer_init\r\n");
- 
+
     egu_init();
     SEGGER_RTT_WriteString(0, "-> Qua egu_init\r\n");
- 
+
     twi_init();
     SEGGER_RTT_WriteString(0, "-> Qua twi_init\r\n");
- 
+
     static uint8_t _i2cDevices[255];
     detect_i2cDevice(_i2cDevices);
     SEGGER_RTT_WriteString(0, "-> Qua detect_i2cDevice\r\n");
- 
+
     loadExtEEPROM_Nodes();
     SEGGER_RTT_WriteString(0, "-> Qua loadExtEEPROM_Nodes\r\n");
- 
+
     nrf_drv_wdt_channel_feed(m_channel_id);
- 
+
     if (aht10_begin() == true)
     {
         aht10Available = true;
     }
     SEGGER_RTT_WriteString(0, "-> Qua aht10_begin\r\n");
- 
+
     if (mq2Available)
     {
         _clientMQ2Value = read_mq2_sensor();
     }
- 
+
     if (aht10Available)
     {
         _clientTemperature = aht10_readTemperature(AHT10_FORCE_READ_DATA);
-        _clientHumidity = aht10_readHumidity(false); 
+        _clientHumidity = aht10_readHumidity(false);
         glcd_printSensor(_clientTemperature, _clientHumidity, _clientMQ2Value);
     }
- 
+
     if (_getResetProvisionKey)
     {
         trigger_egu30_event();
     }
- 
-    SEGGER_RTT_WriteString(0, "-> Vao vong lap for(;;) thanh cong!\r\n");
- 
+
+    SEGGER_RTT_WriteString(0, "-> Vao vong lap for(;;) thanh cong! (TN3: 3 chang, 1000 goi/run)\r\n");
+
     for (;;)
     {
         exp_requests_service();
- 
+
         if (m_second_changed)
         {
-            char rtt_buf[96];
-            const char * mode = periodic_message_allowed ? "TX=RUN" : (m_role_tx ? "TX=IDLE" : "RX");
-            snprintf(rtt_buf, sizeof(rtt_buf), "[TICK] s=%u | %s sent=%u fail=%u | LOG=%u | hops=%u\r\n",
+            char rtt_buf[128];
+            const char * mode = periodic_message_allowed ? "TX=RUN" : (m_role_tx ? "TX=IDLE" : "RX/RLY");
+            snprintf(rtt_buf, sizeof(rtt_buf),
+                     "[TICK] s=%u | %s sent=%u fail=%u | LOG=%u RLY=%u DROP_CACHE=%u | hops=%u\r\n",
                      (unsigned)m_secondCounter, mode,
-                     (unsigned)m_tx_packet_count, (unsigned)m_tx_fail_total, (unsigned)m_offline_count,
+                     (unsigned)m_tx_packet_count, (unsigned)m_tx_fail_total,
+                     (unsigned)m_offline_count, (unsigned)m_relay_ok_cnt, (unsigned)m_drop_cache_cnt,
                      (unsigned)g_exp_hops);
             SEGGER_RTT_WriteString(0, rtt_buf);
-            (void)get_local_time_us();   /* giu bo cong don RTC luon duoc cap nhat (< 512 s) */
- 
+            (void)get_local_time_us();
+
             glcd_integer_print(m_secondCounter);
             display_ClientStatus();
- 
+
             if (clearAllDisplayNodes)
             {
                 clearSavedExtEEPROMNodes();
@@ -1766,21 +2048,21 @@ int main(void)
                 display_nodes();
                 clearAllDisplayNodes = false;
             }
- 
+
             bool is_timeout = check_connection_nodes();
             bool is_poll_5s = (m_secondCounter % 5 == 0);
- 
+
             if (!is_timeout && is_poll_5s)
             {
                 if (mq2Available)
                 {
                     _clientMQ2Value = read_mq2_sensor();
                 }
- 
+
                 if (aht10Available)
                 {
                     _clientTemperature = aht10_readTemperature(AHT10_FORCE_READ_DATA);
-                    _clientHumidity = aht10_readHumidity(false); 
+                    _clientHumidity = aht10_readHumidity(false);
                     glcd_printSensor(_clientTemperature, _clientHumidity, _clientMQ2Value);
                 }
                 else
@@ -1788,21 +2070,21 @@ int main(void)
                     aht10Available = aht10_begin();
                 }
             }
- 
+
             if ((refreshDisplayCounter > 0) || is_timeout || is_poll_5s)
             {
                 display_nodes();
                 refreshDisplayCounter = 0;
             }
- 
+
             if (periodic_message_allowed && mesh_stack_is_device_provisioned())
             {
                 trigger_egu30_event();
             }
- 
+
             m_second_changed = false;
         }
- 
+
         nrf_drv_wdt_channel_feed(m_channel_id);
         (void)sd_app_evt_wait();
     }
