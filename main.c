@@ -69,10 +69,10 @@
 #endif
 
 #ifndef EXP_ID
-#define EXP_ID                    3
+#define EXP_ID                    4
 #endif
 #ifndef FW_GIT_HASH
-#define FW_GIT_HASH               "tn3_v6"
+#define FW_GIT_HASH               "tn4_v1"
 #endif
 #ifndef EXP_NUM_MSGS
 #define EXP_NUM_MSGS              1000
@@ -134,8 +134,15 @@
 #ifndef EXP_TN3_PRESET_RUNTIME
 #define EXP_TN3_PRESET_RUNTIME    1
 #endif
+/* TN4: cau hinh stock = idx 9 trong EXP_TN3_TABLE = {relay_retx 2, net_tx 2, ttl 4}.
+ * EXP_TN4_LOCK_STOCK=1: khoa cung idx 9 (khong cho doi bang nut/RTT) de 36 run
+ * khong the vo tinh chay sai cau hinh, va de khop duoc voi TN2 3 chang. */
+#ifndef EXP_TN4_LOCK_STOCK
+#define EXP_TN4_LOCK_STOCK        1
+#endif
+#define EXP_STOCK_IDX             9
 #ifndef EXP_TN3_START_IDX
-#define EXP_TN3_START_IDX         0
+#define EXP_TN3_START_IDX         EXP_STOCK_IDX
 #endif
 
 #if (EXP_PERIOD_MS != 1000)
@@ -680,8 +687,14 @@ static uint8_t  m_cfg_relay_en     = 0xFF;
 static uint16_t m_cfg_relay_int_ms = 0;
 static int      m_cfg_srv_pub      = -1;
 static int      m_cfg_cli_pub      = -1;
-static char     m_cfg_buf[640];
+static char     m_cfg_buf[768];
 static char     m_line_buf[128];
+
+/* TN4: nhan nhieu Wi-Fi, khai bao luc xa log bang RTT: 'wf=CH,LOAD' va 'run=K'.
+ * 0xFF = chua khai bao. Tu xoa sau khi xa log thanh cong de khong bi nhan nham run cu. */
+static volatile uint8_t  m_wifi_ch   = 0xFF;
+static volatile uint16_t m_wifi_mbps = 0;
+static volatile uint8_t  m_run_k     = 0;
 
 static bool rtt_write_line_reliable(const char *p, unsigned len)
 {
@@ -884,8 +897,8 @@ static void log_config_init(void)
     {
         NRF_LOG_DEFAULT_BACKENDS_INIT();
     }
-    SEGGER_RTT_WriteString(0, "\r\n\r\n====== RTT DA KET NOI THANH CONG (TN3 v6) ======\r\n");
-    SEGGER_RTT_WriteString(0, "# Lenh RTT: 'idx=0..23'+Enter, 'n=10..1100'+Enter, '1'/'c' (+1), 'p' (-1), '2' (Run), '3' (Dump), '4' (Clear), 's' (Status)\r\n\r\n");
+    SEGGER_RTT_WriteString(0, "\r\n\r\n====== RTT DA KET NOI THANH CONG (TN4 v1) ======\r\n");
+    SEGGER_RTT_WriteString(0, "# Lenh RTT TN4: 'wf=CH,LOAD'+Enter (CH=0/1/6/11, LOAD=Mb/s do duoc), 'run=K'+Enter, 'n=10..1100'+Enter, '2' (Run), '3' (Dump), '4' (Clear), 's' (Status). Cau hinh khoa stock idx=9.\r\n\r\n");
 }
 
 void mq2_saadc_init(void)
@@ -1083,6 +1096,8 @@ static void mesh_main_button_event_handler(uint32_t button_number)
 #if EXP_ENABLE_ALARM_BUTTON
             alarm_status_check();
             trigger_egu30_event();
+#elif EXP_TN4_LOCK_STOCK
+            m_status_requested = true;
 #elif EXP_TN3_PRESET_RUNTIME
             m_req_tn3_target = (int8_t)((m_tn3_cfg_idx + 1) % EXP_TN3_NUM_CFGS);
 #elif EXP_HOPS_RUNTIME
@@ -1115,9 +1130,40 @@ static void mesh_main_button_event_handler(uint32_t button_number)
 }
 
 #if EXP_RTT_KEYS
-static char     m_rtt_cmd_buf[16];
+static char     m_rtt_cmd_buf[24];
 static uint8_t  m_rtt_cmd_len     = 0;
+static bool     m_rtt_cmd_invalid = false;
 static uint32_t m_rtt_cmd_last_us = 0;
+
+static bool rtt_parse_uint(const char ** pp, int * p_out)
+{
+    const char * q = *pp;
+    while (*q == ' ')
+    {
+        q++;
+    }
+    if (*q < '0' || *q > '9')
+    {
+        return false;
+    }
+    int v = 0;
+    while (*q >= '0' && *q <= '9')
+    {
+        v = v * 10 + (*q - '0');
+        if (v > 9999)
+        {
+            return false;
+        }
+        q++;
+    }
+    while (*q == ' ')
+    {
+        q++;
+    }
+    *p_out = v;
+    *pp    = q;
+    return true;
+}
 
 static bool exp_rtt_exec_single_key(char ch)
 {
@@ -1164,42 +1210,54 @@ static void exp_rtt_key_handler(int key)
     char ch = (char)key;
     uint32_t now_us = get_local_time_us();
 
-    if (m_rtt_cmd_len > 0 && ((now_us - m_rtt_cmd_last_us) > 1500000u))
+    /* Neu bo do qua 15 giay khong go tiep thi huy chuoi cu */
+    if (m_rtt_cmd_len > 0 && ((now_us - m_rtt_cmd_last_us) > 15000000u))
     {
-        m_rtt_cmd_len = 0;
+        m_rtt_cmd_len     = 0;
+        m_rtt_cmd_invalid = false;
     }
 
     if (m_rtt_cmd_len > 0)
     {
+        /* Ho tro phim Backspace khi go nham */
+        if (ch == '\b' || ch == 0x7F)
+        {
+            m_rtt_cmd_len--;
+            if (m_rtt_cmd_len == 0)
+            {
+                m_rtt_cmd_invalid = false;
+            }
+            m_rtt_cmd_last_us = now_us;
+            return;
+        }
+
         if (ch == '\r' || ch == '\n')
         {
             m_rtt_cmd_buf[m_rtt_cmd_len] = '\0';
-            if ((strncmp(m_rtt_cmd_buf, "idx=", 4) == 0 || strncmp(m_rtt_cmd_buf, "IDX=", 4) == 0) &&
-                m_rtt_cmd_buf[4] >= '0' && m_rtt_cmd_buf[4] <= '9')
+            if (m_rtt_cmd_invalid)
             {
-                int val = 0;
-                for (uint8_t k = 4; m_rtt_cmd_buf[k] >= '0' && m_rtt_cmd_buf[k] <= '9'; k++)
-                {
-                    val = val * 10 + (m_rtt_cmd_buf[k] - '0');
-                }
-                if (val >= 0 && val < (int)EXP_TN3_NUM_CFGS)
+                SEGGER_RTT_printf(0, "# [LOI_RTT] Lenh '%s' co ky tu sai cu phap -> da huy an toan.\r\n",
+                                  m_rtt_cmd_buf);
+            }
+            else if (strncmp(m_rtt_cmd_buf, "idx=", 4) == 0 || strncmp(m_rtt_cmd_buf, "IDX=", 4) == 0)
+            {
+                const char * q = &m_rtt_cmd_buf[4];
+                int val = -1;
+                if (rtt_parse_uint(&q, &val) && (*q == '\0') && val >= 0 && val < (int)EXP_TN3_NUM_CFGS)
                 {
                     m_req_tn3_target = (int8_t)val;
                 }
                 else
                 {
-                    SEGGER_RTT_printf(0, "# [LOI_RTT] idx=%d ngoai pham vi 0..23!\r\n", val);
+                    SEGGER_RTT_printf(0, "# [LOI_RTT] idx='%s' khong hop le!\r\n", m_rtt_cmd_buf);
                 }
             }
-            else if ((strncmp(m_rtt_cmd_buf, "n=", 2) == 0 || strncmp(m_rtt_cmd_buf, "N=", 2) == 0) &&
-                     m_rtt_cmd_buf[2] >= '0' && m_rtt_cmd_buf[2] <= '9')
+            else if (strncmp(m_rtt_cmd_buf, "n=", 2) == 0 || strncmp(m_rtt_cmd_buf, "N=", 2) == 0)
             {
+                const char * q = &m_rtt_cmd_buf[2];
                 int msgs = 0;
-                for (uint8_t k = 2; m_rtt_cmd_buf[k] >= '0' && m_rtt_cmd_buf[k] <= '9'; k++)
-                {
-                    msgs = msgs * 10 + (m_rtt_cmd_buf[k] - '0');
-                }
-                if (!periodic_message_allowed && msgs >= 5 && msgs <= (int)MAX_OFFLINE_RECORDS)
+                if (!periodic_message_allowed && rtt_parse_uint(&q, &msgs) && (*q == '\0') &&
+                    msgs >= 5 && msgs <= (int)MAX_OFFLINE_RECORDS)
                 {
                     m_target_msgs = (uint16_t)msgs;
                     SEGGER_RTT_printf(0, "# [INFO_RTT] Da dat num_msgs = %u goi/run.\r\n", (unsigned)m_target_msgs);
@@ -1210,40 +1268,78 @@ static void exp_rtt_key_handler(int key)
                                       (unsigned)MAX_OFFLINE_RECORDS);
                 }
             }
-            else if (m_rtt_cmd_len == 1 && (m_rtt_cmd_buf[0] == 'n' || m_rtt_cmd_buf[0] == 'N'))
+            else if (strncmp(m_rtt_cmd_buf, "wf=", 3) == 0 || strncmp(m_rtt_cmd_buf, "WF=", 3) == 0)
             {
-                m_req_tn3_target = (int8_t)((m_tn3_cfg_idx + 1) % EXP_TN3_NUM_CFGS);
+                const char * q = &m_rtt_cmd_buf[3];
+                int wch = 0, wload = 0;
+                bool ok = rtt_parse_uint(&q, &wch) && (*q == ',');
+                if (ok)
+                {
+                    q++;
+                    ok = rtt_parse_uint(&q, &wload) && (*q == '\0');
+                }
+                ok = ok && (wch == 0 || wch == 1 || wch == 6 || wch == 11) &&
+                     (wload <= 100) && !(wch == 0 && wload != 0);
+                if (ok && !periodic_message_allowed)
+                {
+                    m_wifi_ch   = (uint8_t)wch;
+                    m_wifi_mbps = (uint16_t)wload;
+                    SEGGER_RTT_printf(0, "# [INFO_RTT] Nhan Wi-Fi: kenh=%d, tai do duoc=%d Mb/s (tu xoa sau khi xa log).\r\n", wch, wload);
+                }
+                else
+                {
+                    SEGGER_RTT_WriteString(0, "# [LOI_RTT] 'wf=CH,LOAD': CH thuoc {0,1,6,11}, LOAD 0..100, CH=0 thi LOAD=0, va khong dang chay.\r\n");
+                }
+            }
+            else if (strncmp(m_rtt_cmd_buf, "run=", 4) == 0 || strncmp(m_rtt_cmd_buf, "RUN=", 4) == 0)
+            {
+                const char * q = &m_rtt_cmd_buf[4];
+                int k = 0;
+                if (rtt_parse_uint(&q, &k) && (*q == '\0') && k >= 1 && k <= 255 && !periodic_message_allowed)
+                {
+                    m_run_k = (uint8_t)k;
+                    SEGGER_RTT_printf(0, "# [INFO_RTT] So thu tu run = %d.\r\n", k);
+                }
+                else
+                {
+                    SEGGER_RTT_WriteString(0, "# [LOI_RTT] 'run=K': K 1..255 va khong dang chay.\r\n");
+                }
             }
             else
             {
-                SEGGER_RTT_printf(0, "# [LOI_RTT] Lenh '%s' khong hop le. Go 'idx=0..23' hoac 'n=30..1000' + Enter.\r\n",
+                SEGGER_RTT_printf(0, "# [LOI_RTT] Lenh '%s' khong hop le. Go 'wf=CH,LOAD', 'run=K', 'n=30..1000' + Enter.\r\n",
                                   m_rtt_cmd_buf);
             }
-            m_rtt_cmd_len = 0;
+            m_rtt_cmd_len     = 0;
+            m_rtt_cmd_invalid = false;
             return;
         }
 
-        bool valid_cont = (ch == 'd' || ch == 'D' || ch == 'x' || ch == 'X' || ch == '=' || (ch >= '0' && ch <= '9'));
-        if (m_rtt_cmd_len == 1 && (ch == '2' || ch == '3' || ch == '4' || ch == 's' || ch == 'S' || ch == 'c' || ch == 'C' || ch == 'p' || ch == 'P'))
-        {
-            valid_cont = false;
-        }
-
-        if (valid_cont && m_rtt_cmd_len < (sizeof(m_rtt_cmd_buf) - 1))
+        /* Giu tat ca ky tu trong bo dem cho den khi nhan Enter de khong bao gio
+         * lam lot cac so '2', '3', '4' xuong lenh phim don khi go nham! */
+        if (m_rtt_cmd_len < (sizeof(m_rtt_cmd_buf) - 1))
         {
             m_rtt_cmd_buf[m_rtt_cmd_len++] = ch;
-            m_rtt_cmd_last_us = now_us;
-            return;
         }
-
-        m_rtt_cmd_len = 0;
+        else
+        {
+            m_rtt_cmd_invalid = true;
+        }
+        m_rtt_cmd_last_us = now_us;
+        return;
     }
 
-    if (ch == 'i' || ch == 'I' || ch == 'n' || ch == 'N')
+    if (ch == 'i' || ch == 'I' || ch == 'n' || ch == 'N' || ch == 'w' || ch == 'W' || ch == 'r' || ch == 'R')
     {
         m_rtt_cmd_buf[0]  = ch;
         m_rtt_cmd_len     = 1;
+        m_rtt_cmd_invalid = false;
         m_rtt_cmd_last_us = now_us;
+        return;
+    }
+
+    if (ch == '\r' || ch == '\n' || ch == ' ')
+    {
         return;
     }
 
@@ -1455,9 +1551,12 @@ static void mesh_init(void)
 static void initialize(void)
 {
     __LOG_INIT(LOG_SRC_APP, LOG_LEVEL_WARN, LOG_CALLBACK_DEFAULT);
-    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "----- BLE Mesh Sensor Node (TN3 v6) -----\n");
+    __LOG(LOG_SRC_APP, LOG_LEVEL_INFO, "----- BLE Mesh Sensor Node (TN4 v1) -----\n");
 
     exp_noinit_check_on_boot();
+#if EXP_TN4_LOCK_STOCK
+    m_tn3_cfg_idx = EXP_STOCK_IDX;
+#endif
 
     ERROR_CHECK(app_timer_init());
     hal_leds_init();
@@ -1790,6 +1889,7 @@ static void exp_cfg_line(char * out, size_t n)
     snprintf(out, n,
              "# CFG exp=%u;fw=%s;role=%s;num_msgs=%u;period_ms=%u;payload_len=%u;hops=%u;"
              "tn3_idx=%u;tn3_tag=r%u_t%u_ttl%u;cfg_match=%u;mid_reset=%u;run=%u;"
+             "wifi_ch=%u;wifi_set_mbps=%u;run_k=%u;"
              "ttl_cfg=%u;ttl_pub=%u;ttl_eff=%u;pub_rtx=%u;"
              "net_tx_cfg=%u;net_tx_now=%u;net_int_ms=%u;"
              "tx_dbm_cfg=%d;tx_dbm_now=%d;"
@@ -1802,6 +1902,7 @@ static void exp_cfg_line(char * out, size_t n)
              (unsigned)p_preset->relay_retx, (unsigned)p_preset->net_tx, (unsigned)p_preset->ttl,
              (unsigned)(m_cfg_match_ok ? 1u : 0u), (unsigned)m_mid_run_reset,
              (unsigned)(periodic_message_allowed ? 1u : 0u),
+             (unsigned)m_wifi_ch, (unsigned)m_wifi_mbps, (unsigned)m_run_k,
              (unsigned)p_preset->ttl, (unsigned)m_cfg_ttl_pub, (unsigned)m_cfg_ttl_eff, (unsigned)m_cfg_rtx,
              (unsigned)p_preset->net_tx, (unsigned)m_cfg_txcnt, (unsigned)m_cfg_txint_ms,
              (int)EXP_TX_POWER_DBM, (int)m_cfg_dbm,
@@ -1899,6 +2000,14 @@ static bool exp_tn3_apply_preset(uint8_t idx, bool blink_led)
 
 static void exp_tn3_select_preset(uint8_t target_idx)
 {
+#if EXP_TN4_LOCK_STOCK
+    if (target_idx != EXP_STOCK_IDX)
+    {
+        SEGGER_RTT_printf(0, "# [LOI] TN4 khoa cau hinh stock idx=%u (r2_t2_ttl4). Yeu cau idx=%u bi tu choi.\r\n",
+                          (unsigned)EXP_STOCK_IDX, (unsigned)target_idx);
+        return;
+    }
+#endif
     if (periodic_message_allowed || (m_offline_count > 0))
     {
         SEGGER_RTT_WriteString(0, "# [LOI] Dang chay hoac con log chua xa -> bam Nut 3 (xa log) hoac Nut 4 (xoa log) truoc khi doi idx.\r\n");
@@ -2060,6 +2169,10 @@ static void exp_dump_log(void)
     m_logging_enabled = false;
     periodic_message_allowed = false;
 
+    if (m_wifi_ch == 0xFF)
+    {
+        SEGGER_RTT_WriteString(0, "# [CANH_BAO] Chua khai bao nhan Wi-Fi (wf=CH,LOAD) -> file log se thieu thong tin nhieu! Van xa log (khong chan).\r\n");
+    }
     SEGGER_RTT_ConfigUpBuffer(0, NULL, NULL, 0, SEGGER_RTT_MODE_NO_BLOCK_SKIP);
 
     exp_cfg_capture();
@@ -2123,6 +2236,7 @@ static void exp_dump_log(void)
             }
         }
         const uint32_t pct10 = (rx_rows > 0) ? ((rx_ok * 1000u) / rx_rows) : 0u;
+        const uint32_t pdr10 = (m_target_msgs > 0) ? ((rx_rows * 1000u) / (uint32_t)m_target_msgs) : 0u;
         const char * verdict = "FAIL";
         if (m_mid_run_reset)
         {
@@ -2132,14 +2246,20 @@ static void exp_dump_log(void)
         {
             verdict = "PASS_TTL_BOUND";
         }
+        else if (rx_rows == 0)
+        {
+            verdict = "NO_RX";
+        }
         else if (rx_rows > 0 && pct10 >= 950u)
         {
             verdict = "PASS";
         }
         int l = snprintf(m_cfg_buf, sizeof(m_cfg_buf),
-                         "# HOPCHECK hops=%u;ttl_rx_exp=%d;match=%u;rx_rows=%u;pct=%u.%u;verdict=%s\r\n",
+                         "# HOPCHECK hops=%u;ttl_rx_exp=%d;match=%u;rx_rows=%u;pct=%u.%u;"
+                         "target=%u;pdr_vs_target_pct=%u.%u;verdict=%s\r\n",
                          (unsigned)g_exp_hops, exp_ttl_rx, (unsigned)rx_ok, (unsigned)rx_rows,
-                         (unsigned)(pct10 / 10u), (unsigned)(pct10 % 10u), verdict);
+                         (unsigned)(pct10 / 10u), (unsigned)(pct10 % 10u),
+                         (unsigned)m_target_msgs, (unsigned)(pdr10 / 10u), (unsigned)(pdr10 % 10u), verdict);
         if (l > 0 && !rtt_write_line_reliable(m_cfg_buf, (unsigned)l))
         {
             aborted = true;
@@ -2214,6 +2334,9 @@ static void exp_dump_log(void)
     m_offline_count   = 0;
     m_offline_dropped = 0;
     m_logging_enabled = true;
+    m_wifi_ch   = 0xFF;
+    m_wifi_mbps = 0;
+    m_run_k     = 0;
     exp_noinit_save(m_tn3_cfg_idx, 0, m_mid_run_reset);
 }
 
@@ -2354,7 +2477,7 @@ int main(void)
         trigger_egu30_event();
     }
 
-    SEGGER_RTT_WriteString(0, "-> Vao vong lap for(;;) thanh cong! (TN3 v6: 3 chang, se tu ap preset o s=2)\r\n");
+    SEGGER_RTT_WriteString(0, "-> Vao vong lap for(;;) thanh cong! (TN4 v1: 3 chang, stock idx=9, se tu ap preset o s=2)\r\n");
 
     for (;;)
     {
@@ -2362,17 +2485,24 @@ int main(void)
 
         if (m_second_changed)
         {
-            char rtt_buf[160];
+            /* TN4: phat TX ngay dau moi tick (truoc LCD/I2C) de chu ky 1000 ms deu giua cac run. */
+            if (periodic_message_allowed && mesh_stack_is_device_provisioned())
+            {
+                trigger_egu30_event();
+            }
+
+            char rtt_buf[192];
             const exp_tn3_cfg_t * p = &EXP_TN3_TABLE[m_tn3_cfg_idx];
             const char * mode = periodic_message_allowed ? "TX=RUN" : (m_role_tx ? "TX=IDLE" : "RX/RLY");
             snprintf(rtt_buf, sizeof(rtt_buf),
-                     "[TICK] s=%u | idx=%u(r%u_t%u_ttl%u) ok=%u rst_err=%u | %s %u/%u fail=%u | LOG=%u RLY=%u DC=%u\r\n",
+                     "[TICK] s=%u | idx=%u(r%u_t%u_ttl%u) ok=%u rst_err=%u | %s %u/%u fail=%u | LOG=%u RLY=%u DC=%u | wf=%u/%uM k=%u\r\n",
                      (unsigned)m_secondCounter,
                      (unsigned)m_tn3_cfg_idx, (unsigned)p->relay_retx, (unsigned)p->net_tx, (unsigned)p->ttl,
                      (unsigned)(m_cfg_match_ok ? 1u : 0u), (unsigned)m_mid_run_reset,
                      mode,
                      (unsigned)m_tx_packet_count, (unsigned)m_target_msgs, (unsigned)m_tx_fail_total,
-                     (unsigned)m_offline_count, (unsigned)m_relay_ok_cnt, (unsigned)m_drop_cache_cnt);
+                     (unsigned)m_offline_count, (unsigned)m_relay_ok_cnt, (unsigned)m_drop_cache_cnt,
+                     (unsigned)m_wifi_ch, (unsigned)m_wifi_mbps, (unsigned)m_run_k);
             SEGGER_RTT_WriteString(0, rtt_buf);
             (void)get_local_time_us();
 
@@ -2413,11 +2543,6 @@ int main(void)
             {
                 display_nodes();
                 refreshDisplayCounter = 0;
-            }
-
-            if (periodic_message_allowed && mesh_stack_is_device_provisioned())
-            {
-                trigger_egu30_event();
             }
 
             m_second_changed = false;
