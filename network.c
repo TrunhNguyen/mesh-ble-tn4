@@ -1,6 +1,3 @@
-/* Copyright (c) 2010 - 2020, Nordic Semiconductor ASA
- * All rights reserved.
- */
 #include "network.h"
 
 #include <stddef.h>
@@ -153,7 +150,7 @@ static uint32_t packet_relay(network_packet_metadata_t *    p_net_metadata,
     p_net_metadata->ttl++;
     return status;
 }
-#endif /* MESH_FEATURE_RELAY_ENABLED */
+#endif
 
 static bool metadata_is_valid(const network_packet_metadata_t * p_net_metadata)
 {
@@ -213,7 +210,7 @@ static bool should_relay(const network_packet_metadata_t * p_metadata,
     }
     return true;
 }
-#endif /* MESH_FEATURE_RELAY_ENABLED */
+#endif
 
 void network_init(const nrf_mesh_init_params_t * p_init_params)
 {
