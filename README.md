@@ -7,6 +7,7 @@ MESH_DATN/
 │
 ├── mbf_fac_Client_v1/          # Source code phía Client
 │   └── sourcesFiles/src/       # Thư mục chứa mã nguồn C/C++ (main.c, v.v.)
+│   └── sourcesFiles/mesh/core/src/ #Thư mục chứa network.c
 │
 ├── .gitignore                  # Cấu hình bỏ qua các tệp rác và thư mục SDK nặng
 └── README.md                   # Tài liệu hướng dẫn dự án
